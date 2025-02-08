@@ -14,6 +14,8 @@ spec:
       run: {{ .Release.Name }}
   template:
     metadata:
+      annotations:
+        checksum/configmap: {{ include (print .Template.BasePath "/configmap.yaml") . | sha256sum }}
       labels:
         app: {{ template "react-serve.fullname" . }}
         release: {{ .Release.Name }}
