@@ -1,0 +1,13 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ template "django-app.envConfigMapName" . }}
+  labels:
+    app: {{ include "django-app.fullname" . }}
+    environment: {{ .Values.environment }}
+    release: {{ .Release.Name }}
+data:
+  # Configs
+  {{- range $name, $value := .Values.env }}
+  {{ $name }}: {{ tpl $value $ | quote }}
+  {{- end }}

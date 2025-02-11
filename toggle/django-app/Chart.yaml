@@ -1,0 +1,21 @@
+apiVersion: v2
+name: django-app
+description: "Helm Chart to deploy the Django application"
+type: application
+version: 0.0.1
+sources:
+  - https://github.com/toggle-corp/charts
+
+dependencies:
+  - name: redis
+    version: 20.6.3
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+  - name: postgresql
+    version: 16.4.5
+    condition: postgresql.enabled
+    repository: https://charts.bitnami.com/bitnami
+  - name: minio
+    version: 14.10.5
+    condition: minio.enabled
+    repository: https://charts.bitnami.com/bitnami

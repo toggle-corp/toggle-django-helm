@@ -1,0 +1,42 @@
+{{- if .Values.argoHook.enabled }}
+
+{{- range $hookName, $hook := .Values.argoHook.hooks }}
+
+{{- if $hook.enabled }}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  {{- if $hook.preserveHistory }}
+  generateName: {{ template "django-app.fullname" $ }}-{{ $hookName }}-
+  {{- else }}
+  name: {{ template "django-app.fullname" $ }}-{{ $hookName }}
+  {{- end }}
+  annotations:
+    argocd.argoproj.io/hook: {{ $hook.hook }}
+spec:
+  template:
+    spec:
+      restartPolicy: "Never"
+      containers:
+        - name: {{ $hookName }}
+          image: "{{ default $.Values.argoHook.image.name $.Values.image.name }}:{{ default $.Values.argoHook.image.tag $.Values.image.tag }}"
+          imagePullPolicy: {{ default $.Values.argoHook.image.imagePullPolicy $.Values.image.imagePullPolicy }}
+          command: {{ toYaml $hook.command | trim | nindent 12 }}
+          resources:
+            {{- toYaml (default $hook.resources $.Values.argoHook.resources) | nindent 12 }}
+          env:
+            - name: DJANGO_APP_TYPE
+              value: hook
+          envFrom:
+            - secretRef:
+                name: {{ template "django-app.secretname" $ }}
+            - configMapRef:
+                name: {{ template "django-app.envConfigMapName" $ }}
+
+{{- end }}
+
+{{- end }}
+
+{{- end }}
