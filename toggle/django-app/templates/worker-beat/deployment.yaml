@@ -1,0 +1,45 @@
+{{- if .Values.worker.enabled }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "django-app.fullname" . }}-worker-beat
+  labels:
+    app: {{ include "django-app.fullname" . }}
+    component: worker-beat
+    environment: {{ .Values.environment }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1  # This should only 1
+  selector:
+    matchLabels:
+      app: {{ include "django-app.fullname" . }}
+      component: worker-beat
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print .Template.BasePath "/config/secret.yaml") . | sha256sum }}
+        checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml") . | sha256sum }}
+      labels:
+        app: {{ include "django-app.fullname" . }}
+        component: worker-beat
+    spec:
+      containers:
+        - name: worker-beat
+          image: "{{ default .Values.worker.beat.image.name .Values.image.name }}:{{ default .Values.worker.beat.image.tag .Values.image.tag }}"
+          imagePullPolicy: {{ default .Values.worker.beat.image.imagePullPolicy .Values.image.imagePullPolicy }}
+          command:
+            {{- toYaml .Values.worker.beat.command | nindent 12 }}
+          # TODO: livenessProbe
+          resources:
+            {{- toYaml .Values.worker.beat.resources | nindent 12 }}
+          env:
+            - name: DJANGO_APP_TYPE
+              value: worker
+          envFrom:
+            - secretRef:
+                name: {{ template "django-app.secretname" . }}
+            - configMapRef:
+                name: {{ template "django-app.envConfigMapName" . }}
+
+{{- end }}

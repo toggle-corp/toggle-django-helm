@@ -1,0 +1,54 @@
+{{- if .Values.worker.enabled }}
+
+{{- range $queue_name, $config := .Values.worker.queues }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "django-app.fullname" $ }}-worker-{{ $queue_name }}
+  labels:
+    app: {{ include "django-app.fullname" $ }}
+    component: worker
+    queue: {{ $queue_name }}
+    environment: {{ $.Values.environment }}
+    release: {{ $.Release.Name }}
+spec:
+  replicas: {{ $config.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "django-app.fullname" $ }}
+      component: worker
+      queue: {{ $queue_name }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/config/secret.yaml") $ | sha256sum }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/config/configmap.yaml") $ | sha256sum }}
+      labels:
+        app: {{ include "django-app.fullname" $ }}
+        component: worker
+        queue: {{ $queue_name }}
+    spec:
+      containers:
+        - name: worker
+          image: "{{ default $.Values.worker.image.name $.Values.image.name }}:{{ default $.Values.worker.image.tag $.Values.image.tag }}"
+          imagePullPolicy: {{ default $.Values.worker.image.imagePullPolicy $.Values.image.imagePullPolicy }}
+          command:
+            {{- toYaml $.Values.worker.queueCommandPrefix | nindent 12 }}
+            {{- toYaml $config.celeryArgs | nindent 12 }}
+          # TODO: livenessProbe
+          resources:
+            {{- toYaml $config.resources | nindent 12 }}
+          env:
+            - name: DJANGO_APP_TYPE
+              value: worker
+          envFrom:
+            - secretRef:
+                name: {{ template "django-app.secretname" $ }}
+            - configMapRef:
+                name: {{ template "django-app.envConfigMapName" $ }}
+
+{{- end }}
+
+{{- end }}

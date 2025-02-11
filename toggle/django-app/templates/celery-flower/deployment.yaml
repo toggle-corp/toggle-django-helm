@@ -1,0 +1,47 @@
+{{- if .Values.worker.enabled }}
+{{- if .Values.worker.flower.enabled }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "django-app.fullname" . }}-celery-flower
+  labels:
+    app: {{ include "django-app.fullname" . }}
+    component: worker-flower
+    environment: {{ .Values.environment }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "django-app.fullname" . }}
+      component: worker-flower
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print .Template.BasePath "/config/secret.yaml") . | sha256sum }}
+        checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml") . | sha256sum }}
+      labels:
+        app: {{ include "django-app.fullname" . }}
+        component: worker-flower
+    spec:
+      containers:
+        - name: worker
+          image: "{{ default .Values.worker.flower.image.name .Values.image.name }}:{{ default .Values.worker.flower.image.tag .Values.image.tag }}"
+          imagePullPolicy: {{ default .Values.worker.flower.image.imagePullPolicy .Values.image.imagePullPolicy }}
+          command:
+            {{- toYaml .Values.worker.flower.command | nindent 12 }}
+          # TODO: livenessProbe
+          resources:
+            {{- toYaml .Values.worker.flower.resources | nindent 12 }}
+          env:
+            - name: DJANGO_APP_TYPE
+              value: worker
+          envFrom:
+            - secretRef:
+                name: {{ template "django-app.secretname" . }}
+            - configMapRef:
+                name: {{ template "django-app.envConfigMapName" . }}
+
+{{- end }}
+{{- end }}

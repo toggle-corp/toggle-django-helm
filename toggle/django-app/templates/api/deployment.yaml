@@ -1,0 +1,49 @@
+{{- if .Values.api.enabled }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "django-app.fullname" . }}-api
+  labels:
+    app: {{ include "django-app.fullname" . }}
+    component: api
+    environment: {{ .Values.environment }}
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "django-app.fullname" . }}
+      component: api
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print .Template.BasePath "/config/secret.yaml") . | sha256sum }}
+        checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml") . | sha256sum }}
+      labels:
+        app: {{ include "django-app.fullname" . }}
+        component: api
+    spec:
+      containers:
+        - name: api
+          image: "{{ default .Values.api.image.name .Values.image.name }}:{{ default .Values.api.image.tag .Values.image.tag }}"
+          imagePullPolicy: {{ default .Values.api.image.imagePullPolicy .Values.image.imagePullPolicy }}
+          command:
+            {{- toYaml .Values.api.command | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.containerPort }}
+              protocol: TCP
+          # TODO: livenessProbe
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          env:
+            - name: DJANGO_APP_TYPE
+              value: web
+          envFrom:
+            - secretRef:
+                name: {{ template "django-app.secretname" . }}
+            - configMapRef:
+                name: {{ template "django-app.envConfigMapName" . }}
+
+{{- end }}
