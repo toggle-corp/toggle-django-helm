@@ -19,6 +19,7 @@ jobs:
       matrix:
         include:
           - chart: react-serve
+          - chart: django-app
 
     steps:
     - name: Checkout code
