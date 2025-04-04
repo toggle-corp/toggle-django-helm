@@ -24,6 +24,9 @@ spec:
           image: "{{ default $.Values.argoHook.image.name $.Values.image.name }}:{{ default $.Values.argoHook.image.tag $.Values.image.tag }}"
           imagePullPolicy: {{ default $.Values.argoHook.image.imagePullPolicy $.Values.image.imagePullPolicy }}
           command: {{ toYaml $hook.command | trim | nindent 12 }}
+          {{- if $hook.args }}
+          args: {{ toYaml $hook.args | trim | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml (default $hook.resources $.Values.argoHook.resources) | nindent 12 }}
           env:

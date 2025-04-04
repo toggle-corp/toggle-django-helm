@@ -66,6 +66,17 @@ worker:
         requests:
           cpu: "0.1"
 
+argoHook:
+  enabled: true
+  hooks:
+    my-custom-command:
+      enabled: true
+      hook: PostSync
+      preserveHistory: true
+      command: ["/bin/bash", "-c"]
+      args:
+        - "date --iso-8601 && ls"
+
 env:
   ENV_1: VALUE_1
 
