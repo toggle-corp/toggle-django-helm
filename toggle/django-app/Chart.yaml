@@ -2,11 +2,15 @@ apiVersion: v2
 name: django-app
 description: "Helm Chart to deploy the Django application"
 type: application
-version: 0.0.1
+version: 0.1.0
 sources:
   - https://github.com/toggle-corp/charts
 
 dependencies:
+  - name: rabbitmq
+    version: 15.4.2
+    repository: https://charts.bitnami.com/bitnami
+    condition: rabbitmq.enabled
   - name: redis
     version: 20.6.3
     repository: https://charts.bitnami.com/bitnami

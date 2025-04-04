@@ -69,6 +69,31 @@ minio:
     extraCommands:
       - "mc anonymous set download provisioning/static-data"
 
+rabbitmq:
+  enabled: false
+  fullnameOverride: "django-rabbitmq"
+  auth:
+    username: django
+    password:
+    erlangCookie: # Generate using `dd if=/dev/urandom bs=30 count=1 | base64`
+  # XXX: Don't change this (`celery` vhost is used in templates/config/secret.yaml
+  extraConfiguration: |-
+    default_vhost = celery
+    default_permissions.configure = .*
+    default_permissions.read = .*
+    default_permissions.write = .*
+  resources:
+    requests:
+      cpu: "0.1"
+      memory: 1024Mi
+    limits:
+      cpu: "4"
+      memory: 2048Mi
+  persistence:
+    enabled: true
+    size: 2Gi
+    storageClass:
+
 api:
   # Not required if global image are set
   image: {}

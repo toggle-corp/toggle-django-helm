@@ -1,4 +1,7 @@
 dependencies:
+- name: rabbitmq
+  repository: https://charts.bitnami.com/bitnami
+  version: 15.4.2
 - name: redis
   repository: https://charts.bitnami.com/bitnami
   version: 20.6.3
@@ -8,5 +11,5 @@ dependencies:
 - name: minio
   repository: https://charts.bitnami.com/bitnami
   version: 14.10.5
-digest: sha256:bb671bae5b6453f7da356f8482f2ccf7eb182b7d38c28fea28e39841c8bb41b5
-generated: "2025-02-11T14:41:21.280715684+05:45"
+digest: sha256:d13c4b60bfcbb8354039fa1bbf090428182038339cb096c48bedf8447dd281da
+generated: "2025-04-04T15:36:03.574423508+05:45"
