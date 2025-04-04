@@ -7,6 +7,10 @@ sources:
   - https://github.com/toggle-corp/charts
 
 dependencies:
+  - name: rabbitmq
+    version: 15.4.2
+    repository: https://charts.bitnami.com/bitnami
+    condition: rabbitmq.enabled
   - name: redis
     version: 20.6.3
     repository: https://charts.bitnami.com/bitnami
