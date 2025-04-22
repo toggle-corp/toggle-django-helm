@@ -21,22 +21,26 @@ spec:
       restartPolicy: "Never"
       containers:
         - name: {{ $hookName }}
-          image: "{{ default $.Values.argoHook.image.name $.Values.image.name }}:{{ default $.Values.argoHook.image.tag $.Values.image.tag }}"
-          imagePullPolicy: {{ default $.Values.argoHook.image.imagePullPolicy $.Values.image.imagePullPolicy }}
+          {{- include "django-app.imageConfig"
+              (dict "Default" $.Values.image "Override" $.Values.argoHook.image)
+              | nindent 10
+          }}
           command: {{ toYaml $hook.command | trim | nindent 12 }}
           {{- if $hook.args }}
           args: {{ toYaml $hook.args | trim | nindent 12 }}
           {{- end }}
           resources:
-            {{- toYaml (default $hook.resources $.Values.argoHook.resources) | nindent 12 }}
-          env:
-            - name: DJANGO_APP_TYPE
-              value: hook
+            {{- include "django-app.resourcesConfig"
+                (dict "Default" $.Values.argoHook.resources "Override" $hook.resources)
+                | nindent 12
+            }}
           envFrom:
-            - secretRef:
-                name: {{ template "django-app.secretname" $ }}
-            - configMapRef:
-                name: {{ template "django-app.envConfigMapName" $ }}
+            {{- include "django-app.envConfig" $ | nindent 12 }}
+          env:
+            {{- include "django-app.appTypeConfig"
+                (dict "Values" $.Values "Type" "hook" )
+                | nindent 12
+            }}
 
 {{- end }}
 
