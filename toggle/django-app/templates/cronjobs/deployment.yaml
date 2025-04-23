@@ -17,6 +17,9 @@ metadata:
     release: {{ $.Release.Name }}
 spec:
   schedule: {{ $job.schedule | quote }}
+  {{- if $job.timeZone }}
+  timeZone: {{ $job.timeZone | quote }}
+  {{- end }}
   concurrencyPolicy: "Forbid"
   jobTemplate:
     spec:

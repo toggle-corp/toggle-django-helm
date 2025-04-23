@@ -92,14 +92,24 @@ cronjobs:
       memory: 2Gi
   # NOTE: Application level configuration
   jobs:
-    "dummy":
+    dummy-01:
       enabled: true
       schedule: "0 0 * * *"
-      command: ["./manage.py", "run-dummy-command"]
+      command: ["./manage.py", "run-dummy-command", "01"]
       resources:
         requests:
           cpu: "2"
           memory: 4Gi
+    dummy-02:
+      enabled: true
+      schedule: "0 0 * * *"
+      timeZone: "Asia/Kathmandu"
+      command: ["./manage.py", "run-dummy-command", "02"]
+    dummy-03:
+      enabled: false
+      schedule: "* * * * *"
+      timeZone: "Asia/Kathmandu"
+      command: ["./manage.py", "run-dummy-command", "03"]
 
 extraConfigMapName: "my-custom-envs"
 env:

@@ -195,11 +195,12 @@ cronjobs:
       cpu: "1"
       memory: 2Gi
   # NOTE: Application level configuration
-  jobs:
-    "dummy":
-      schedule: "0 0 * * *"
-      enabled: false
-      command: ["./manage.py", "run-dummy-command"]
+  jobs: {}
+    # "dummy":
+    #   schedule: "0 0 * * *"
+    #   timeZone: "Asia/Kathmandu"
+    #   enabled: false
+    #   command: ["./manage.py", "run-dummy-command"]
 
 # Not required if global image are set
 argoHook:
