@@ -1,5 +1,6 @@
 environment: PROD
 
+appTypeEnvName: "DJANGO_APP_TYPE"
 image: {}
   # name:
   # tag:
@@ -146,6 +147,13 @@ worker:
       limits:
         cpu: "1"
         memory: 1Gi
+  queueDefaultResources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
   queueCommandPrefix:
     - "celery"
     - "-A"
@@ -173,6 +181,27 @@ worker:
           cpu: "1"
           memory: 2Gi
 
+cronjobs:
+  enabled: true
+  image: {}
+    # name: CRONJOB-SET-BY-CICD-IMAGE
+    # tag: CRONJOB-SET-BY-CICD-TAG
+    # imagePullPolicy: IfNotPresent
+  defaultResources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  # NOTE: Application level configuration
+  jobs: {}
+    # "dummy":
+    #   schedule: "0 0 * * *"
+    #   timeZone: "Asia/Kathmandu"
+    #   enabled: false
+    #   command: ["./manage.py", "run-dummy-command"]
+
 # Not required if global image are set
 argoHook:
   enabled: true
@@ -199,9 +228,11 @@ argoHook:
       hook: PostSync
       command: ["./manage.py", "collectstatic", "--noinput"]
 
+extraConfigMapName: ""  # User provided name
 envConfigMapName: ""
 env: {}
 
+extraSecretsName: ""  # User provided name
 secretsName: ""
 secrets: {}
   # # Postgres

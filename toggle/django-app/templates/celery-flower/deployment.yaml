@@ -27,21 +27,22 @@ spec:
     spec:
       containers:
         - name: worker
-          image: "{{ default .Values.worker.flower.image.name .Values.image.name }}:{{ default .Values.worker.flower.image.tag .Values.image.tag }}"
-          imagePullPolicy: {{ default .Values.worker.flower.image.imagePullPolicy .Values.image.imagePullPolicy }}
+          {{- include "django-app.imageConfig"
+              (dict "Default" $.Values.image "Override" $.Values.worker.flower.image)
+              | nindent 10
+          }}
           command:
             {{- toYaml .Values.worker.flower.command | nindent 12 }}
           # TODO: livenessProbe
           resources:
             {{- toYaml .Values.worker.flower.resources | nindent 12 }}
-          env:
-            - name: DJANGO_APP_TYPE
-              value: worker
           envFrom:
-            - secretRef:
-                name: {{ template "django-app.secretname" . }}
-            - configMapRef:
-                name: {{ template "django-app.envConfigMapName" . }}
+            {{- include "django-app.envConfig" $ | nindent 12 }}
+          env:
+            {{- include "django-app.appTypeConfig"
+                (dict "Values" $.Values "Type" "worker" )
+                | nindent 12
+            }}
 
 {{- end }}
 {{- end }}

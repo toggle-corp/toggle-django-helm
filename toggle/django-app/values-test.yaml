@@ -3,6 +3,7 @@ environment: ALPHA
 image:
   name: ghcr.io/example/example
   tag: v1.0.1
+  imagePullPolicy: IfNotPresent
 
 ingress:
   enabled: true
@@ -77,9 +78,44 @@ argoHook:
       args:
         - "date --iso-8601 && ls"
 
+cronjobs:
+  enabled: true
+  image:
+    name: ghcr.io/example/cronjob
+    tag: v1.cronjob
+  defaultResources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  # NOTE: Application level configuration
+  jobs:
+    dummy-01:
+      enabled: true
+      schedule: "0 0 * * *"
+      command: ["./manage.py", "run-dummy-command", "01"]
+      resources:
+        requests:
+          cpu: "2"
+          memory: 4Gi
+    dummy-02:
+      enabled: true
+      schedule: "0 0 * * *"
+      timeZone: "Asia/Kathmandu"
+      command: ["./manage.py", "run-dummy-command", "02"]
+    dummy-03:
+      enabled: false
+      schedule: "* * * * *"
+      timeZone: "Asia/Kathmandu"
+      command: ["./manage.py", "run-dummy-command", "03"]
+
+extraConfigMapName: "my-custom-envs"
 env:
   ENV_1: VALUE_1
 
+extraSecretsName: "my-custom-secrets"
 secrets:
   # Postgres
   POSTGRES_DB: "{{ $.Values.postgresql.auth.database }}"

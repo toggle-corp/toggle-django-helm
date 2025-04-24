@@ -52,3 +52,62 @@ Create the name of the configmap to be used by the django-app
   {{- printf "%s-env-name" (include "django-app.fullname" .) -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Generate image metadata
+*/}}
+{{- define "django-app.imageConfig" -}}
+{{- $default := deepCopy .Default -}}
+{{- $override := deepCopy (default dict .Override) -}}
+{{- $merged := (
+    merge
+        (dict)
+        $override
+        $default
+    )
+-}}
+image: "{{ printf "%s:%s" $merged.name $merged.tag }}"
+imagePullPolicy: {{ default "IfNotPresent" $merged.imagePullPolicy }}
+{{- end }}
+
+{{/*
+Generate resources metadata
+*/}}
+{{- define "django-app.resourcesConfig" -}}
+{{- $default := deepCopy .Default -}}
+{{- $override := deepCopy (default dict .Override) -}}
+{{
+     (
+        merge
+            (dict)
+            $override
+            $default
+        ) | toYaml
+}}
+{{- end }}
+
+{{/*
+Generate env configs for deployments
+*/}}
+{{- define "django-app.envConfig" -}}
+- secretRef:
+    name: {{ template "django-app.secretname" . }}
+{{- if .Values.extraSecretsName }}
+- secretRef:
+    name: {{ .Values.extraSecretsName }}
+{{- end }}
+- configMapRef:
+    name: {{ template "django-app.envConfigMapName" . }}
+{{- if .Values.extraConfigMapName }}
+- configMapRef:
+    name: {{ .Values.extraConfigMapName }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate env configs for app types
+*/}}
+{{- define "django-app.appTypeConfig" -}}
+- name: {{ .Values.appTypeEnvName }}
+  value: {{ .Type | quote }}
+{{- end }}
