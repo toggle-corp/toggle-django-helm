@@ -18,8 +18,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: {{ include (print .Template.BasePath "/config/secret.yaml") . | sha256sum }}
-        checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml") . | sha256sum }}
+        {{- include "django-app.appDefaultAnnotations" $ | nindent 8 }}
       labels:
         app: {{ include "django-app.fullname" . }}
         component: api
