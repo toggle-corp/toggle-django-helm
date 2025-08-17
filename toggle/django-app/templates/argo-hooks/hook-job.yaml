@@ -35,9 +35,9 @@ spec:
                 | nindent 12
             }}
           envFrom:
-            {{- include "django-app.envConfig" $ | nindent 12 }}
+            {{- include "django-app.envFromTemplate" $ | nindent 12 }}
           env:
-            {{- include "django-app.appTypeConfig"
+            {{- include "django-app.envTemplate"
                 (dict "Values" $.Values "Type" "hook" )
                 | nindent 12
             }}

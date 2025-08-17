@@ -89,7 +89,7 @@ Generate resources metadata
 {{/*
 Generate env configs for deployments
 */}}
-{{- define "django-app.envConfig" -}}
+{{- define "django-app.envFromTemplate" -}}
 - secretRef:
     name: {{ template "django-app.secretname" . }}
 {{- if .Values.extraSecretsName }}
@@ -107,9 +107,12 @@ Generate env configs for deployments
 {{/*
 Generate env configs for app types
 */}}
-{{- define "django-app.appTypeConfig" -}}
+{{- define "django-app.envTemplate" -}}
 - name: {{ .Values.appTypeEnvName }}
   value: {{ .Type | quote }}
+{{- if .Values.extraEnvVars }}
+{{ toYaml .Values.extraEnvVars }}
+{{- end }}
 {{- end }}
 
 {{/*

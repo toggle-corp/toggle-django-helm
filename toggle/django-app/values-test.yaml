@@ -135,3 +135,16 @@ secrets:
   # NOTE: To change bucket name look at defaultBuckets and provisioning.extraCommands
   AWS_S3_BUCKET_STATIC_NAME: static-data
   AWS_S3_BUCKET_MEDIA_NAME: media-data
+
+
+extraEnvVars:
+  - name: SPECIAL_LEVEL_KEY
+    valueFrom:
+      configMapKeyRef:
+        name: special-config
+        key: special.how
+  - name: SPECIAL_LEVEL_KEY_FROM_SECRETS
+    valueFrom:
+      secretKeyRef:
+        name: special-secret
+        key: special.how

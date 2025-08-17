@@ -41,9 +41,9 @@ spec:
                     | nindent 16
                 }}
               envFrom:
-                {{- include "django-app.envConfig" $ | nindent 16 }}
+                {{- include "django-app.envFromTemplate" $ | nindent 16 }}
               env:
-                {{- include "django-app.appTypeConfig"
+                {{- include "django-app.envTemplate"
                     (dict "Values" $.Values "Type" "cronjob" )
                     | nindent 16
                 }}
