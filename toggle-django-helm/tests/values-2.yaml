@@ -1,0 +1,145 @@
+environment: ALPHA
+
+image:
+  name: ghcr.io/example/example
+  tag: v1.0.1
+  imagePullPolicy: IfNotPresent
+
+ingress:
+  enabled: true
+  host: myapp.example.com
+  className: nginx
+
+redis:
+  enabled: true
+  fullnameOverride: my-app-redis
+  master:
+    persistence:
+      storageClass: longhorn
+
+postgresql:
+  enabled: true
+  fullnameOverride: "my-app-postgres"
+  auth:
+    postgresPassword: "random-strong-password"
+    database: "my-app"
+  primary:
+    persistence:
+      storageClass: "longhorn"
+      size: 2Gi
+
+minio:
+  enabled: true
+  fullnameOverride: my-app-minio
+  global:
+    defaultStorageClass: longhorn
+  apiIngress:
+    ingressClassName: nginx
+    hostname: myapp-minio.example.com
+  auth:
+    rootPassword: "random-strong-password"
+  persistence:
+    size: 2Gi
+# NOTE: To change bucket name look at defaultBuckets and provisioning.extraCommands
+
+api:
+  resources:
+    requests:
+      cpu: "0.2"
+
+worker:
+  image:
+    name: ghcr.io/example/example
+    tag: v1.0.1
+  beat:
+    resources:
+      requests:
+        cpu: "0.1"
+  flower:
+    enabled: true
+    resources:
+      requests:
+        cpu: "0.1"
+  queues:
+    # NOTE: Make sure keys are lowercase
+    default:
+      resources:
+        requests:
+          cpu: "0.1"
+
+argoHook:
+  enabled: true
+  hooks:
+    my-custom-command:
+      enabled: true
+      hook: PostSync
+      preserveHistory: true
+      command: ["/bin/bash", "-c"]
+      args:
+        - "date --iso-8601 && ls"
+
+cronjobs:
+  enabled: true
+  image:
+    name: ghcr.io/example/cronjob
+    tag: v1.cronjob
+  defaultResources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  # NOTE: Application level configuration
+  jobs:
+    dummy-01:
+      enabled: true
+      schedule: "0 0 * * *"
+      command: ["./manage.py", "run-dummy-command", "01"]
+      resources:
+        requests:
+          cpu: "2"
+          memory: 4Gi
+    dummy-02:
+      enabled: true
+      schedule: "0 0 * * *"
+      timeZone: "Asia/Kathmandu"
+      command: ["./manage.py", "run-dummy-command", "02"]
+    dummy-03:
+      enabled: false
+      schedule: "* * * * *"
+      timeZone: "Asia/Kathmandu"
+      command: ["./manage.py", "run-dummy-command", "03"]
+
+extraConfigMapName: "my-custom-envs"
+env:
+  ENV_1: VALUE_1
+
+extraSecretsName: "my-custom-secrets"
+secrets:
+  # Postgres
+  POSTGRES_DB: "{{ $.Values.postgresql.auth.database }}"
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "{{ $.Values.postgresql.auth.postgresPassword }}"
+  POSTGRES_HOST: "{{ include \"postgresql.v1.primary.fullname\" $.Subcharts.postgresql }}"
+  POSTGRES_PORT: "{{ include \"postgresql.v1.service.port\" $.Subcharts.postgresql }}"
+
+  # Redis
+  REDIS_URL: "redis://{{ printf \"%s-master\" (include \"common.names.fullname\" .Subcharts.redis) }}:6379/0"
+
+  # Minio (S3)
+  AWS_S3_AWS_ENDPOINT_URL: "https://{{ $.Values.minio.apiIngress.hostname }}/"
+  AWS_S3_ACCESS_KEY_ID: "{{ required \".Values.minio.auth.rootUser\" $.Values.minio.auth.rootUser }}"
+  AWS_S3_SECRET_ACCESS_KEY: "{{ required \".Values.minio.auth.rootPassword\" $.Values.minio.auth.rootPassword }}"
+  AWS_S3_REGION: "us-east-1"
+  # NOTE: To change bucket name look at defaultBuckets and provisioning.extraCommands
+  AWS_S3_BUCKET_STATIC_NAME: static-data
+  AWS_S3_BUCKET_MEDIA_NAME: media-data
+
+
+extraEnvVars:
+  - name: SPECIAL_LEVEL_KEY
+    valueFrom:
+      configMapKeyRef:
+        name: special-config
+        key: special.how
