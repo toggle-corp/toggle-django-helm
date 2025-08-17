@@ -1,7 +1,0 @@
-apiVersion: v2
-name: react-serve
-description: "Basic Helm Chart to deploy React Web App"
-type: application
-version: 0.0.1
-sources:
-  - https://github.com/toggle-corp/charts
