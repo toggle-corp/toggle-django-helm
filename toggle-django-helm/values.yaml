@@ -253,4 +253,4 @@ secrets: {}
   # AWS_S3_BUCKET_STATIC_NAME: static-data
   # AWS_S3_BUCKET_MEDIA_NAME: media-data
 
-extraManifests: []
+# extraManifests: [] or {}
