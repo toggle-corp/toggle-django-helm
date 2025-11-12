@@ -2,36 +2,78 @@
 # Original https://github.com/orhun/git-cliff/blob/main/release.sh
 set -e
 
+DEFAULT_BRANCH=main
+# Update this to archive old changelogs
+# NOTE: Make sure to also update cliff.toml:footer to includes those archived changelogs as well
+START_COMMIT="a9e9c76bd3ed17667bf88837f9c968387fc18fac"
+
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+log_success() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+log_error() {
+    echo -e "${RED}$1${NC}"
+}
+
+log_warning() {
+    echo -e "${YELLOW}$1${NC}"
+}
+
 if ! command -v typos &>/dev/null; then
-  echo "typos is not installed. Run 'cargo install typos-cli' to install it, otherwise the typos won't be fixed"
+  log_error "typos is not installed."
+  log_error "Run 'cargo install typos-cli' to install it, otherwise the typos won't be fixed"
+  exit 1
 fi
 
 if ! command -v semver &>/dev/null; then
-  echo "semver is required to validate the tag."
+  log_error "semver is required to validate the tag."
+  exit 1
 fi
 
-version_tag="${1#v}"
+current_branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [ "$current_branch" != "$DEFAULT_BRANCH" ]; then
+    log_warning "You are on branch '${current_branch}', not '${DEFAULT_BRANCH}'."
+    read -p "Proceed anyway? Y to confirm: " confirm
+    if [[ "$confirm" != "Y" ]]; then
+        log_error "Aborted by user."
+        exit 1
+    fi
+fi
+
+
+echo "Existing tags:"
+git for-each-ref --sort=-creatordate --format '- %(refname:short)' refs/tags | head -n 10
+echo
+
+read -p "Enter new version tag (e.g. v1.2.3, v1.2.3-dev0): " version_tag
+
+# Trim leading/trailing whitespace
+version_tag=$(echo "$version_tag" | xargs)
 
 if [ -z "$version_tag" ]; then
-    echo "Please provide a tag."
-    echo "Usage: ./release.sh [X.Y.Z]"
-    exit
+    log_error "No version tag provided."
+    exit 1
 fi
 
 if semver valid "$version_tag" > /dev/null; then
-  echo "Valid SemVer: $version_tag"
+  log_success "Valid SemVer: $version_tag"
 else
-  echo "Invalid SemVer: \"$version_tag\"" >&2
-  echo "Eg: 0.1.1 0.1.1-dev0"
+  log_error "Invalid SemVer: \"$version_tag\""
   exit 1
 fi
 
 # Define your cleanup or final function
 exit_message() {
-    echo "-----------------"
-    echo "If you aren't happy with these changes. try again with"
-    echo "git reset --soft HEAD~1"
-    echo "git tag -d $version_tag"
+    log_warning "-----------------"
+    log_warning "If you aren't happy with these changes, try again with"
+    log_warning "git reset --soft HEAD~1"
+    log_warning "git tag -d $version_tag"
 }
 trap exit_message EXIT
 
@@ -48,7 +90,7 @@ sed -E -i "s/^version: .* $msg$/version: ${version_tag}  $msg/" "./toggle-django
 git add ./toggle-django-helm/Chart.yaml
 
 # update the changelog
-git-cliff --config cliff.toml --tag "$version_tag" > CHANGELOG.md
+git-cliff "$START_COMMIT..HEAD" --config cliff.toml --tag "$version_tag" > CHANGELOG.md
 git add CHANGELOG.md
 git commit -m "chore(release): prepare for $version_tag"
 git show
@@ -61,11 +103,13 @@ export GIT_CLIFF_TEMPLATE="\
         - {% if commit.breaking %}(breaking) {% endif %}{{ commit.message | upper_first }} ({{ commit.id | truncate(length=7, end=\"\") }})\
     {% endfor %}
     {% endfor %}"
-changelog=$(git-cliff --config detailed.toml --unreleased --strip all)
+changelog=$(git-cliff "$START_COMMIT..HEAD" --config detailed.toml --unreleased --strip all)
 
 # create a signed tag
 # https://keyserver.ubuntu.com/pks/lookup?search=0x4A92FA17B6619297&op=vindex
 git tag "$version_tag" -m "Release $version_tag" -m "$changelog"
 git tag -v "$version_tag"
-echo "Done!"
-echo "Now push the commit (git push) and the tag ( git push origin tag $version_tag)."
+log_success "Done!"
+log_success "You can now push the tag (git push origin $version_tag)"
+log_success "If the github workflow works as expected, push the commit (git push) to default branch"
+log_success "To push both tag and branch (git push --follow-tags)"
