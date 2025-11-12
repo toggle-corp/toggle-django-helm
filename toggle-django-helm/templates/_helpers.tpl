@@ -32,6 +32,17 @@
 {{- end -}}
 
 {{/*
+Create the name of the service account to use
+*/}}
+{{- define "django-app.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "django-app.fullname" .) .Values.serviceAccountName }}
+{{- else }}
+{{- default "default" .Values.serviceAccountName }}
+{{- end }}
+{{- end }}
+
+{{/*
 Create the name of the secret to be used by the django-app
 */}}
 {{- define "django-app.secretname" -}}

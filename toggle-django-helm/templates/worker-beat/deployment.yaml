@@ -23,6 +23,10 @@ spec:
         app: {{ include "django-app.fullname" . }}
         component: worker-beat
     spec:
+      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      {{- end }}
       containers:
         - name: worker-beat
           {{- include "django-app.imageConfig"

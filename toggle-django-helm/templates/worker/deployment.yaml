@@ -29,6 +29,10 @@ spec:
         component: worker
         queue: {{ $queue_name }}
     spec:
+      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- if $.Values.serviceAccount.create }}
+      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      {{- end }}
       containers:
         - name: worker
           command:

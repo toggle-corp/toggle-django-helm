@@ -24,6 +24,10 @@ spec:
         app: {{ include "django-app.fullname" . }}
         component: worker-flower
     spec:
+      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      {{- end }}
       containers:
         - name: worker
           {{- include "django-app.imageConfig"

@@ -137,6 +137,11 @@ secrets:
   AWS_S3_BUCKET_MEDIA_NAME: media-data
 
 
+serviceAccountName: ""
+serviceAccount:
+  create: true
+  automountServiceAccountToken: true
+
 extraEnvVars:
   - name: SPECIAL_LEVEL_KEY
     valueFrom:
