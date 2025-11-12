@@ -133,4 +133,16 @@ Generate default annotations for app deployments
 reloader.stakater.com/auto: "true"
 checksum/secret: {{ include (print .Template.BasePath "/config/secret.yaml") . | sha256sum }}
 checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml") . | sha256sum }}
+{{- with .Values.podAnnotations }}
+{{ toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate default labels for app deployments
+*/}}
+{{- define "django-app.appDefaultLabels" -}}
+{{- with .Values.podLabels -}}
+{{ toYaml . }}
+{{- end }}
 {{- end }}

@@ -24,6 +24,15 @@ spec:
   jobTemplate:
     spec:
       activeDeadlineSeconds: {{ default 7200 $job.timeLimit }}  # 2 hours default
+      metadata:
+        {{- with $.Values.podAnnotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        labels:
+          app: {{ include "django-app.fullname" $ }}
+          component: cronjob
+          {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 10 }}{{- end }}
       template:
         spec:
           restartPolicy: "Never"

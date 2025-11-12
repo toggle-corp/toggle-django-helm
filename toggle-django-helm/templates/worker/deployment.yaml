@@ -28,6 +28,7 @@ spec:
         app: {{ include "django-app.fullname" $ }}
         component: worker
         queue: {{ $queue_name }}
+        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
       {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
       {{- if $.Values.serviceAccount.create }}

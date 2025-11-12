@@ -23,6 +23,7 @@ spec:
       labels:
         app: {{ include "django-app.fullname" . }}
         component: worker-flower
+        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
       {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
       {{- if .Values.serviceAccount.create }}

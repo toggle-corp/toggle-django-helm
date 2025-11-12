@@ -17,6 +17,13 @@ metadata:
     argocd.argoproj.io/hook: {{ $hook.hook }}
 spec:
   template:
+    metadata:
+      annotations:
+        {{- include "django-app.appDefaultAnnotations" $ | nindent 8 }}
+      labels:
+        app: {{ include "django-app.fullname" $ }}
+        component: argo-hooks
+        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
       restartPolicy: "Never"
       {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}

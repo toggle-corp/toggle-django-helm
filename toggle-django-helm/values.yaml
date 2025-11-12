@@ -1,6 +1,10 @@
 environment: PROD
 
 appTypeEnvName: "DJANGO_APP_TYPE"
+
+podLabels: {}
+podAnnotations: {}
+
 image: {}
   # name:
   # tag:
