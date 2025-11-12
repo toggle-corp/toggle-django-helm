@@ -1,0 +1,144 @@
+environment: ALPHA
+
+image:
+  name: ghcr.io/example/example
+  tag: v1.0.1
+
+ingress:
+  enabled: true
+  host: myapp.example.com
+  className: nginx
+
+redis:
+  enabled: true
+  fullnameOverride: my-app-redis
+  master:
+    persistence:
+      storageClass: longhorn
+
+postgresql:
+  enabled: true
+  fullnameOverride: "my-app-postgres"
+  auth:
+    postgresPassword: "random-strong-password"
+    database: "my-app"
+  primary:
+    persistence:
+      storageClass: "longhorn"
+      size: 2Gi
+
+minio:
+  enabled: true
+  fullnameOverride: my-app-minio
+  global:
+    defaultStorageClass: longhorn
+  apiIngress:
+    ingressClassName: nginx
+    hostname: myapp-minio.example.com
+  auth:
+    rootPassword: "random-strong-password"
+  persistence:
+    size: 2Gi
+# NOTE: To change bucket name look at defaultBuckets and provisioning.extraCommands
+
+api:
+  resources:
+    requests:
+      cpu: "0.2"
+
+worker:
+  image:
+    name: ghcr.io/example/example
+    tag: v1.0.1
+  beat:
+    resources:
+      requests:
+        cpu: "0.1"
+  flower:
+    enabled: true
+    resources:
+      requests:
+        cpu: "0.1"
+  queues:
+    # NOTE: Make sure keys are lowercase
+    default:
+      resources:
+        requests:
+          cpu: "0.1"
+
+env:
+  ENV_1: VALUE_1
+
+secrets:
+  # Postgres
+  POSTGRES_DB: "{{ $.Values.postgresql.auth.database }}"
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "{{ $.Values.postgresql.auth.postgresPassword }}"
+  POSTGRES_HOST: "{{ include \"postgresql.v1.primary.fullname\" $.Subcharts.postgresql }}"
+  POSTGRES_PORT: "{{ include \"postgresql.v1.service.port\" $.Subcharts.postgresql }}"
+
+  # Redis
+  REDIS_URL: "redis://{{ printf \"%s-master\" (include \"common.names.fullname\" .Subcharts.redis) }}:6379/0"
+
+  # Minio (S3)
+  AWS_S3_AWS_ENDPOINT_URL: "https://{{ $.Values.minio.apiIngress.hostname }}/"
+  AWS_S3_ACCESS_KEY_ID: "{{ required \".Values.minio.auth.rootUser\" $.Values.minio.auth.rootUser }}"
+  AWS_S3_SECRET_ACCESS_KEY: "{{ required \".Values.minio.auth.rootPassword\" $.Values.minio.auth.rootPassword }}"
+  AWS_S3_REGION: "us-east-1"
+  # NOTE: To change bucket name look at defaultBuckets and provisioning.extraCommands
+  AWS_S3_BUCKET_STATIC_NAME: static-data
+  AWS_S3_BUCKET_MEDIA_NAME: media-data
+
+extraManifests:
+  cnpg_backup_schedule:
+    apiVersion: postgresql.cnpg.io/v1
+    kind: ScheduledBackup
+    metadata:
+      name: backup-daily
+    spec:
+      cluster:
+        name: pg-cluster
+      suspend: false  # Pause this backup
+      immediate: true  # Create immediate backup when creating this resource
+      schedule: "0 0 0 * * *"
+      backupOwnerReference: self
+      method: plugin
+      pluginConfiguration:
+        name: barman-cloud.cloudnative-pg.io
+  cnpg_object_store:
+    apiVersion: barmancloud.cnpg.io/v1
+    kind: ObjectStore
+    metadata:
+      name: aws-s3-store
+    spec:
+      retentionPolicy: "30d"
+      configuration:
+        destinationPath: "s3://my-db-backup/barman/"
+        s3Credentials:
+          accessKeyId:
+            name: barman-s3-creds
+            key: ACCESS_KEY_ID
+          secretAccessKey:
+            name: barman-s3-creds
+            key: ACCESS_SECRET_KEY
+        wal:
+          compression: gzip
+          maxParallel: 4
+  cnpg_cluster:
+    apiVersion: postgresql.cnpg.io/v1
+    kind: Cluster
+    metadata:
+      name: pg-cluster
+    spec:
+      instances: 3
+      enablePDB: true
+      storage:
+        size: 300Mi
+      monitoring:
+        enablePodMonitor: true
+      backup: {}
+      plugins:
+        - name: barman-cloud.cloudnative-pg.io
+          isWALArchiver: true
+          parameters:
+            barmanObjectName: aws-s3-store

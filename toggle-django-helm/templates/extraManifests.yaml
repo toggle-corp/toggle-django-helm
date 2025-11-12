@@ -1,4 +1,16 @@
-{{ range .Values.extraManifests }}
+{{- if .Values.extraManifests }}
+  {{- $extra := .Values.extraManifests }}
+  {{- if kindIs "map" $extra }}
+    {{- range $key, $val := $extra }}
 ---
-{{ tpl (toYaml .) $ }}
-{{ end }}
+{{ tpl (toYaml $val) $ }}
+    {{- end }}
+  {{- else if kindIs "slice" $extra }}
+    {{- range $val := $extra }}
+---
+{{ tpl (toYaml $val) $ }}
+    {{- end }}
+  {{- else }}
+    {{- fail "Values.extraManifests must be a map or an array of objects" }}
+  {{- end }}
+{{- end }}
