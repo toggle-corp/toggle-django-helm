@@ -96,7 +96,7 @@ rabbitmq:
     storageClass:
 
 api:
-  # Not required if global image are set
+  # Not required if root image are set
   image: {}
     # name: WORKER-SET-BY-CICD-IMAGE
     # tag: WORKER-SET-BY-CICD-TAG
@@ -114,7 +114,7 @@ api:
       memory: 1Gi
 
 worker:
-  # Not required if global image are set
+  # Not required if root image are set
   image: {}
     # name: WORKER-SET-BY-CICD-IMAGE
     # tag: WORKER-SET-BY-CICD-TAG
@@ -202,7 +202,7 @@ cronjobs:
     #   enabled: false
     #   command: ["./manage.py", "run-dummy-command"]
 
-# Not required if global image are set
+# Not required if root image are set
 argoHook:
   enabled: true
   image: {}
