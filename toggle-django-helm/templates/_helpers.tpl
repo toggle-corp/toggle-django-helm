@@ -140,8 +140,15 @@ Generate env configs for app types
 {{/*
 Generate default annotations for app deployments
 */}}
+{{- define "django-app.appDefaultDeploymentAnnotations" -}}
+annotations:
+  reloader.stakater.com/auto: "true"
+{{- end }}
+
+{{/*
+Generate default annotations for app pods
+*/}}
 {{- define "django-app.appDefaultAnnotations" -}}
-reloader.stakater.com/auto: "true"
 checksum/secret: {{ include (print .Template.BasePath "/config/secret.yaml") . | sha256sum }}
 checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml") . | sha256sum }}
 {{- with .Values.podAnnotations }}

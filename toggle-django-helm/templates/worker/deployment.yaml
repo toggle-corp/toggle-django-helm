@@ -7,6 +7,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "django-app.fullname" $ }}-worker-{{ $queue_name }}
+  {{- with (include "django-app.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "django-app.fullname" $ }}
     component: worker
