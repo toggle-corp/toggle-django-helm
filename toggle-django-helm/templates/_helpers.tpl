@@ -45,6 +45,17 @@ Create the name of the service account to use
 {{/*
 Create the name of the secret to be used by the django-app
 */}}
+{{- define "django-app.secretProviderName" -}}
+{{- if .Values.secretsStoreCsiDriverProviderName }}
+  {{- .Values.secretsStoreCsiDriverProviderName -}}
+{{- else }}
+  {{- printf "%s-secret-provider" (include "django-app.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the secret to be used by the django-app
+*/}}
 {{- define "django-app.secretname" -}}
 {{- if .Values.secretsName }}
   {{- .Values.secretsName -}}
@@ -151,9 +162,19 @@ Generate default labels for app deployments
 Generate default volumes for app deployments
 */}}
 {{- define "django-app.appDefaultVolumes" -}}
-{{- if .Values.podVolumes }}
+{{- if or .Values.secretsStoreCsiDriver.create .Values.podVolumes -}}
 volumes:
+{{- if .Values.secretsStoreCsiDriver.create }}
+  - name: {{ template "django-app.secretname" . }}
+    csi:
+      driver: "secrets-store.csi.k8s.io"
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: {{ template "django-app.secretProviderName" . }}
+{{- end }}
+{{- if .Values.podVolumes }}
 {{ .Values.podVolumes | toYaml | indent 2 }}
+{{- end }}
 {{- end }}
 {{- end }}
 
@@ -161,8 +182,15 @@ volumes:
 Generate default volumes mounts for app deployments
 */}}
 {{- define "django-app.appDefaultVolumeMounts" -}}
-{{- if .Values.podVolumeMounts }}
+{{- if or .Values.secretsStoreCsiDriver.create .Values.podVolumeMounts -}}
 volumeMounts:
+{{- if .Values.secretsStoreCsiDriver.create }}
+  - name: {{ template "django-app.secretname" . }}
+    mountPath: /mnt/secrets-store
+    readOnly: true
+{{- end }}
+{{- if .Values.podVolumeMounts }}
 {{ .Values.podVolumeMounts | toYaml | indent 2 }}
+{{- end }}
 {{- end }}
 {{- end }}

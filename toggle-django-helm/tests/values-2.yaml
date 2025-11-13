@@ -157,6 +157,18 @@ secrets:
   AWS_S3_BUCKET_MEDIA_NAME: media-data
 
 
+# Azure configurations
+secretsStoreCsiDriver:
+  create: true
+  parameters:
+    usePodIdentity: "false"
+    clientID: "sample"
+    keyvaultName: "sample"
+    tenantId: ""
+  secretsKeyMap:
+    CACHE_REDIS_URL: CACHE-REDIS-URL
+    CELERY_BROKER_URL: CELERY-BROKER-URL
+
 serviceAccountName: ""
 serviceAccount:
   create: true

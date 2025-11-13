@@ -266,4 +266,16 @@ serviceAccount:
   labels: {}
   automountServiceAccountToken: true
 
+# Azure configurations
+secretsStoreCsiDriverProviderName: ""
+secretsStoreCsiDriver:
+  create: false
+  provider: azure  # Only azure is supported
+  parameters:
+    usePodIdentity: "false"
+    clientID: ""
+    keyvaultName: ""
+    tenantId: ""
+  secretsKeyMap: {}  # k8s Secret Key -> VaultKey
+
 # extraManifests: [] or {}
