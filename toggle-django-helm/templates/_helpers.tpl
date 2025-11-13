@@ -146,3 +146,23 @@ Generate default labels for app deployments
 {{ toYaml . }}
 {{- end }}
 {{- end }}
+
+{{/*
+Generate default volumes for app deployments
+*/}}
+{{- define "django-app.appDefaultVolumes" -}}
+{{- if .Values.podVolumes }}
+volumes:
+{{ .Values.podVolumes | toYaml | indent 2 }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate default volumes mounts for app deployments
+*/}}
+{{- define "django-app.appDefaultVolumeMounts" -}}
+{{- if .Values.podVolumeMounts }}
+volumeMounts:
+{{ .Values.podVolumeMounts | toYaml | indent 2 }}
+{{- end }}
+{{- end }}

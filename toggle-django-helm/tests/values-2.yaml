@@ -7,6 +7,19 @@ podAnnotations:
   aws.workload.identity/use2: "true"
   aws.workload.identity/use3: "true"
 
+podVolumes:
+  - name: my-stuff
+    csi:
+      driver: "secrets-store.csi.k8s.io"
+      readOnly: "true"
+      volumeAttributes:
+        secretProviderClass: my-secret-provider
+
+podVolumeMounts:
+  - name: my-secret
+    mountPath: /mnt/secrets-store
+    readOnly: true
+
 image:
   name: ghcr.io/example/example
   tag: v1.0.1

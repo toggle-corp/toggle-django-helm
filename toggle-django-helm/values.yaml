@@ -4,6 +4,8 @@ appTypeEnvName: "DJANGO_APP_TYPE"
 
 podLabels: {}
 podAnnotations: {}
+podVolumes: []
+podVolumeMounts: []
 
 image: {}
   # name:

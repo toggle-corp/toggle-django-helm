@@ -60,6 +60,7 @@ spec:
                     (dict "Values" $.Values "Type" "cronjob" )
                     | nindent 16
                 }}
+              {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 14 }}{{- end }}
 
 {{- end }}
 

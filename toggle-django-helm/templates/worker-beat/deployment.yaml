@@ -46,5 +46,6 @@ spec:
                 (dict "Values" $.Values "Type" "worker" )
                 | nindent 12
             }}
+          {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}
