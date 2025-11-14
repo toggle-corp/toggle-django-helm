@@ -24,6 +24,8 @@ image:
   name: ghcr.io/example/example
   tag: v1.0.1
   imagePullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: regcred
 
 ingress:
   enabled: true

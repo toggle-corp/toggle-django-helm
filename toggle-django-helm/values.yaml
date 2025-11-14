@@ -11,6 +11,7 @@ image: {}
   # name:
   # tag:
   # imagePullPolicy: IfNotPresent
+  # imagePullSecrets:
 
 ingress:
   enabled: false
@@ -107,6 +108,7 @@ api:
     # name: WORKER-SET-BY-CICD-IMAGE
     # tag: WORKER-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
+    # imagePullSecrets:
   enabled: true
   replicaCount: 1
   containerPort: 80
@@ -125,12 +127,14 @@ worker:
     # name: WORKER-SET-BY-CICD-IMAGE
     # tag: WORKER-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
+    # imagePullSecrets:
   enabled: true
   beat:
     image: {}
       # name: WORKER-SET-BY-CICD-IMAGE
       # tag: WORKER-SET-BY-CICD-TAG
       # imagePullPolicy: IfNotPresent
+      # imagePullSecrets:
     command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
     resources:
       requests:
@@ -144,6 +148,7 @@ worker:
       # name: WORKER-SET-BY-CICD-IMAGE
       # tag: WORKER-SET-BY-CICD-TAG
       # imagePullPolicy: IfNotPresent
+      # imagePullSecrets:
     enabled: false  # Install flower package first
     command: ["celery", "-A", "myapp", "flower", "--port=8000"]
     resources:
@@ -193,6 +198,7 @@ cronjobs:
     # name: CRONJOB-SET-BY-CICD-IMAGE
     # tag: CRONJOB-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
+    # imagePullSecrets:
   defaultResources:
     requests:
       cpu: "1"
@@ -215,6 +221,7 @@ argoHook:
     # name: WORKER-SET-BY-CICD-IMAGE
     # tag: WORKER-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
+    # imagePullSecrets:
   resources:
     requests:
       cpu: "0.1"

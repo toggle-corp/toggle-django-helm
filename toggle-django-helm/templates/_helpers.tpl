@@ -90,6 +90,10 @@ Generate image metadata
 -}}
 image: "{{ printf "%s:%s" $merged.name $merged.tag }}"
 imagePullPolicy: {{ default "IfNotPresent" $merged.imagePullPolicy }}
+{{- with $merged.imagePullSecrets }}
+imagePullSecrets:
+{{- toYaml . | nindent 2 }}
+{{- end }}
 {{- end }}
 
 {{/*
