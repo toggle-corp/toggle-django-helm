@@ -89,6 +89,15 @@ secrets:
   AWS_S3_BUCKET_STATIC_NAME: static-data
   AWS_S3_BUCKET_MEDIA_NAME: media-data
 
+serviceAccountName: "secret-account"
+serviceAccount:
+  create: true
+  annotations:
+    azure.workload.identity/client-id : "XXXXXXXX-YYYYYYYY"
+  labels:
+    azure.workload.identity/use: "true"
+  automountServiceAccountToken: true
+
 extraManifests:
   - apiVersion: postgresql.cnpg.io/v1
     kind: ScheduledBackup

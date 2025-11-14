@@ -4,6 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "django-app.fullname" . }}-worker-beat
+  {{- with (include "django-app.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "django-app.fullname" . }}
     component: worker-beat
@@ -22,7 +23,12 @@ spec:
       labels:
         app: {{ include "django-app.fullname" . }}
         component: worker-beat
+        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
+      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      {{- end }}
       containers:
         - name: worker-beat
           {{- include "django-app.imageConfig"
@@ -41,5 +47,6 @@ spec:
                 (dict "Values" $.Values "Type" "worker" )
                 | nindent 12
             }}
+          {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}

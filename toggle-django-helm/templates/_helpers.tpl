@@ -32,6 +32,28 @@
 {{- end -}}
 
 {{/*
+Create the name of the service account to use
+*/}}
+{{- define "django-app.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "django-app.fullname" .) .Values.serviceAccountName }}
+{{- else }}
+{{- default "default" .Values.serviceAccountName }}
+{{- end }}
+{{- end }}
+
+{{/*
+Create the name of the secret to be used by the django-app
+*/}}
+{{- define "django-app.secretProviderName" -}}
+{{- if .Values.secretsStoreCsiDriverProviderName }}
+  {{- .Values.secretsStoreCsiDriverProviderName -}}
+{{- else }}
+  {{- printf "%s-secret-provider" (include "django-app.fullname" .) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the name of the secret to be used by the django-app
 */}}
 {{- define "django-app.secretname" -}}
@@ -68,6 +90,10 @@ Generate image metadata
 -}}
 image: "{{ printf "%s:%s" $merged.name $merged.tag }}"
 imagePullPolicy: {{ default "IfNotPresent" $merged.imagePullPolicy }}
+{{- with $merged.imagePullSecrets }}
+imagePullSecrets:
+{{- toYaml . | nindent 2 }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -118,8 +144,64 @@ Generate env configs for app types
 {{/*
 Generate default annotations for app deployments
 */}}
+{{- define "django-app.appDefaultDeploymentAnnotations" -}}
+annotations:
+  reloader.stakater.com/auto: "true"
+{{- end }}
+
+{{/*
+Generate default annotations for app pods
+*/}}
 {{- define "django-app.appDefaultAnnotations" -}}
-reloader.stakater.com/auto: "true"
 checksum/secret: {{ include (print .Template.BasePath "/config/secret.yaml") . | sha256sum }}
 checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml") . | sha256sum }}
+{{- with .Values.podAnnotations }}
+{{ toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate default labels for app deployments
+*/}}
+{{- define "django-app.appDefaultLabels" -}}
+{{- with .Values.podLabels -}}
+{{ toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate default volumes for app deployments
+*/}}
+{{- define "django-app.appDefaultVolumes" -}}
+{{- if or .Values.secretsStoreCsiDriver.create .Values.podVolumes -}}
+volumes:
+{{- if .Values.secretsStoreCsiDriver.create }}
+  - name: {{ template "django-app.secretname" . }}
+    csi:
+      driver: "secrets-store.csi.k8s.io"
+      readOnly: true
+      volumeAttributes:
+        secretProviderClass: {{ template "django-app.secretProviderName" . }}
+{{- end }}
+{{- if .Values.podVolumes }}
+{{ .Values.podVolumes | toYaml | indent 2 }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Generate default volumes mounts for app deployments
+*/}}
+{{- define "django-app.appDefaultVolumeMounts" -}}
+{{- if or .Values.secretsStoreCsiDriver.create .Values.podVolumeMounts -}}
+volumeMounts:
+{{- if .Values.secretsStoreCsiDriver.create }}
+  - name: {{ template "django-app.secretname" . }}
+    mountPath: /mnt/secrets-store
+    readOnly: true
+{{- end }}
+{{- if .Values.podVolumeMounts }}
+{{ .Values.podVolumeMounts | toYaml | indent 2 }}
+{{- end }}
+{{- end }}
 {{- end }}

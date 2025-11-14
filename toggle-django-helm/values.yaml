@@ -1,10 +1,17 @@
 environment: PROD
 
 appTypeEnvName: "DJANGO_APP_TYPE"
+
+podLabels: {}
+podAnnotations: {}
+podVolumes: []
+podVolumeMounts: []
+
 image: {}
   # name:
   # tag:
   # imagePullPolicy: IfNotPresent
+  # imagePullSecrets:
 
 ingress:
   enabled: false
@@ -96,11 +103,12 @@ rabbitmq:
     storageClass:
 
 api:
-  # Not required if global image are set
+  # Not required if root image are set
   image: {}
     # name: WORKER-SET-BY-CICD-IMAGE
     # tag: WORKER-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
+    # imagePullSecrets:
   enabled: true
   replicaCount: 1
   containerPort: 80
@@ -114,17 +122,19 @@ api:
       memory: 1Gi
 
 worker:
-  # Not required if global image are set
+  # Not required if root image are set
   image: {}
     # name: WORKER-SET-BY-CICD-IMAGE
     # tag: WORKER-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
+    # imagePullSecrets:
   enabled: true
   beat:
     image: {}
       # name: WORKER-SET-BY-CICD-IMAGE
       # tag: WORKER-SET-BY-CICD-TAG
       # imagePullPolicy: IfNotPresent
+      # imagePullSecrets:
     command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
     resources:
       requests:
@@ -138,6 +148,7 @@ worker:
       # name: WORKER-SET-BY-CICD-IMAGE
       # tag: WORKER-SET-BY-CICD-TAG
       # imagePullPolicy: IfNotPresent
+      # imagePullSecrets:
     enabled: false  # Install flower package first
     command: ["celery", "-A", "myapp", "flower", "--port=8000"]
     resources:
@@ -187,6 +198,7 @@ cronjobs:
     # name: CRONJOB-SET-BY-CICD-IMAGE
     # tag: CRONJOB-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
+    # imagePullSecrets:
   defaultResources:
     requests:
       cpu: "1"
@@ -202,13 +214,14 @@ cronjobs:
     #   enabled: false
     #   command: ["./manage.py", "run-dummy-command"]
 
-# Not required if global image are set
+# Not required if root image are set
 argoHook:
   enabled: true
   image: {}
     # name: WORKER-SET-BY-CICD-IMAGE
     # tag: WORKER-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
+    # imagePullSecrets:
   resources:
     requests:
       cpu: "0.1"
@@ -252,5 +265,24 @@ secrets: {}
   # AWS_S3_REGION: "us-east-1"
   # AWS_S3_BUCKET_STATIC_NAME: static-data
   # AWS_S3_BUCKET_MEDIA_NAME: media-data
+
+serviceAccountName: ""
+serviceAccount:
+  create: false
+  annotations: {}
+  labels: {}
+  automountServiceAccountToken: true
+
+# Azure configurations
+secretsStoreCsiDriverProviderName: ""
+secretsStoreCsiDriver:
+  create: false
+  provider: azure  # Only azure is supported
+  parameters:
+    usePodIdentity: "false"
+    clientID: ""
+    keyvaultName: ""
+    tenantId: ""
+  secretsKeyMap: {}  # k8s Secret Key -> VaultKey
 
 # extraManifests: [] or {}

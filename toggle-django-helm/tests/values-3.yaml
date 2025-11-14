@@ -1,5 +1,10 @@
 environment: ALPHA
 
+podLabels:
+  azure.workload.identity/use: "true"
+podAnnotations:
+  aws.workload.identity/use: "true"
+
 image:
   name: ghcr.io/example/example
   tag: v1.0.1

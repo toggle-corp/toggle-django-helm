@@ -1,9 +1,31 @@
 environment: ALPHA
 
+podLabels:
+  azure.workload.identity/use: "true"
+podAnnotations:
+  aws.workload.identity/use: "true"
+  aws.workload.identity/use2: "true"
+  aws.workload.identity/use3: "true"
+
+podVolumes:
+  - name: my-stuff
+    csi:
+      driver: "secrets-store.csi.k8s.io"
+      readOnly: "true"
+      volumeAttributes:
+        secretProviderClass: my-secret-provider
+
+podVolumeMounts:
+  - name: my-secret
+    mountPath: /mnt/secrets-store
+    readOnly: true
+
 image:
   name: ghcr.io/example/example
   tag: v1.0.1
   imagePullPolicy: IfNotPresent
+  imagePullSecrets:
+    - name: regcred
 
 ingress:
   enabled: true
@@ -136,6 +158,23 @@ secrets:
   AWS_S3_BUCKET_STATIC_NAME: static-data
   AWS_S3_BUCKET_MEDIA_NAME: media-data
 
+
+# Azure configurations
+secretsStoreCsiDriver:
+  create: true
+  parameters:
+    usePodIdentity: "false"
+    clientID: "sample"
+    keyvaultName: "sample"
+    tenantId: ""
+  secretsKeyMap:
+    CACHE_REDIS_URL: CACHE-REDIS-URL
+    CELERY_BROKER_URL: CELERY-BROKER-URL
+
+serviceAccountName: ""
+serviceAccount:
+  create: true
+  automountServiceAccountToken: true
 
 extraEnvVars:
   - name: SPECIAL_LEVEL_KEY

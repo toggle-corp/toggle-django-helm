@@ -4,6 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "django-app.fullname" . }}-api
+  {{- with (include "django-app.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "django-app.fullname" . }}
     component: api
@@ -22,7 +23,12 @@ spec:
       labels:
         app: {{ include "django-app.fullname" . }}
         component: api
+        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
+      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      {{- end }}
       containers:
         - name: api
           {{- include "django-app.imageConfig"
@@ -45,5 +51,6 @@ spec:
               (dict "Values" $.Values "Type" "web" )
               | nindent 12
           }}
+          {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}

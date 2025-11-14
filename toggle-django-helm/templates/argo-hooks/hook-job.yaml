@@ -17,8 +17,19 @@ metadata:
     argocd.argoproj.io/hook: {{ $hook.hook }}
 spec:
   template:
+    metadata:
+      annotations:
+        {{- include "django-app.appDefaultAnnotations" $ | nindent 8 }}
+      labels:
+        app: {{ include "django-app.fullname" $ }}
+        component: argo-hooks
+        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
       restartPolicy: "Never"
+      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- if $.Values.serviceAccount.create }}
+      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      {{- end }}
       containers:
         - name: {{ $hookName }}
           {{- include "django-app.imageConfig"
@@ -41,6 +52,7 @@ spec:
                 (dict "Values" $.Values "Type" "hook" )
                 | nindent 12
             }}
+          {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}
 
