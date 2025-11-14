@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.2.2](https://github.com/toggle-corp/toggle-django-helm/compare/0.2.1..0.2.2) - 2025-11-14
+### Changes:
+
+#### 🚀  Features
+
+- Add imagePullSecrets - ([ab45bd1](https://github.com/toggle-corp/toggle-django-helm/commit/ab45bd1784e114d69f5f70794f825967f47741b1))
+- Add secretsStoreCsiDriver integration (usages in azure) - ([734157e](https://github.com/toggle-corp/toggle-django-helm/commit/734157eef9d1b0e604ef8511950a6cba27dc068f))
+- Add podVolumes and podVolumeMounts - ([ad099b9](https://github.com/toggle-corp/toggle-django-helm/commit/ad099b9514b448689392f5b6ad807bc9f77c137c))
+- Add podLabels and podAnnotations - ([97c3c97](https://github.com/toggle-corp/toggle-django-helm/commit/97c3c973528ee3915cc144a388bc0d1fc1c37af7))
+- Add service-account - ([674052b](https://github.com/toggle-corp/toggle-django-helm/commit/674052b52446f20828071fb4828475564f590379))
+
+#### 🐛 Bug Fixes
+
+- Reloader.stakater.com annotations placement - ([16c5976](https://github.com/toggle-corp/toggle-django-helm/commit/16c5976c7fa78362e1ef3090c3342ae6646ec9d7))
+
+#### 📚 Documentation
+
+- Update comments - ([248b117](https://github.com/toggle-corp/toggle-django-helm/commit/248b1172704715b856b815d35af8e910fd061d96))
+
+### 🍻 Pull Requests (1)
+- (#2) [Feat/azure integration](https://github.com/toggle-corp/toggle-django-helm/pull/2)
+
+
 ## [0.2.1](https://github.com/toggle-corp/toggle-django-helm/compare/0.2.0..0.2.1) - 2025-11-12
 ### Changes:
 
@@ -14,9 +37,6 @@
 ### 🍻 Pull Requests (1)
 - (#1) [Feat: allow object for extraManifests](https://github.com/toggle-corp/toggle-django-helm/pull/1)
 
-### :tada: New Contributors (1)
-
-- [@thenav56](https://github.com/thenav56) made their first contribution in [#1](https://github.com/toggle-corp/toggle-django-helm/pull/1)
 
 ## [0.2.0](https://github.com/toggle-corp/toggle-django-helm/compare/0.1.0-dev1..0.2.0) - 2025-08-20
 ### Changes:
