@@ -8,6 +8,9 @@ ingress:
   enabled: true
   host: myapp.example.com
   className: nginx
+  tls:
+    enabled: true
+    secretName: my-secret
 
 redis:
   enabled: true
