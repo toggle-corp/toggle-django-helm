@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3](https://github.com/toggle-corp/toggle-django-helm/compare/0.2.2..0.2.3) - 2025-11-14
+### Changes:
+
+#### 🚀  Features
+
+- Fix missing ingress tls configuration - ([ece5ff7](https://github.com/toggle-corp/toggle-django-helm/commit/ece5ff7fe593cd660834b81135ec42f1c540960f))
+
+
 ## [0.2.2](https://github.com/toggle-corp/toggle-django-helm/compare/0.2.1..0.2.2) - 2025-11-14
 ### Changes:
 
