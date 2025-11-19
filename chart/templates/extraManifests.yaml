@@ -3,14 +3,23 @@
   {{- if kindIs "map" $extra }}
     {{- range $key, $val := $extra }}
 ---
+{{- if kindIs "string" $val }}
+{{ tpl $val $ }}
+{{- else }}
 {{ tpl (toYaml $val) $ }}
+{{- end }}
     {{- end }}
+
   {{- else if kindIs "slice" $extra }}
     {{- range $val := $extra }}
 ---
+{{- if kindIs "string" $val }}
+{{ tpl $val $ }}
+{{- else }}
 {{ tpl (toYaml $val) $ }}
+{{- end }}
     {{- end }}
   {{- else }}
-    {{- fail "Values.extraManifests must be a map or an array of objects" }}
+    {{- fail "Values.extraManifests must be a map or array" }}
   {{- end }}
 {{- end }}
