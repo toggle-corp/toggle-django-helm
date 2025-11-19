@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.2.4](https://github.com/toggle-corp/toggle-django-helm/compare/0.2.3..0.2.4) - 2025-11-19
+### Changes:
+
+#### 🚀  Features
+
+- Remove default resources for default worker - ([f1daa41](https://github.com/toggle-corp/toggle-django-helm/commit/f1daa418aa55028b8100f209d135028842dbf7ed))
+- Add env per worker - ([0f28a8f](https://github.com/toggle-corp/toggle-django-helm/commit/0f28a8ffcffab8b41dd17156481ec01d6f26d4ce))
+- Support string in extra-manifests - ([092e4c3](https://github.com/toggle-corp/toggle-django-helm/commit/092e4c3b5d91ff06eb2b0314cbe11cfb26aa00ef))
+- Add script to generate values-tests snapshot - ([2197491](https://github.com/toggle-corp/toggle-django-helm/commit/21974918d36b396a3d707548eb96675d256c745f))
+
+#### 🐛 Bug Fixes
+
+- Use bitnamilegacy images - ([8a79c58](https://github.com/toggle-corp/toggle-django-helm/commit/8a79c58c237f02bcc5b8f72bfe6b0077a2d1f569))
+
+#### ⚙️ Miscellaneous Tasks
+
+- Rename toggle-django-helm dir to chart - ([b42ffff](https://github.com/toggle-corp/toggle-django-helm/commit/b42ffffaac028d9411708d75b318836132bfb198))
+
+### :tada: New Contributors (1)
+
+- [@thenav56](https://github.com/thenav56) made their first contribution
+
 ## [0.2.3](https://github.com/toggle-corp/toggle-django-helm/compare/0.2.2..0.2.3) - 2025-11-14
 ### Changes:
 
