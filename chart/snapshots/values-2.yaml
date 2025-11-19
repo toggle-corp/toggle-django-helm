@@ -1157,6 +1157,10 @@ spec:
                 configMapKeyRef:
                   key: special.how
                   name: special-config
+            - name: USER_PROXY_SERVER_REF
+              value: "PROXY_1"
+            - name: USER_PROXY_SERVER_REF2
+              value: "PROXY_2"
           volumeMounts:
             - name: release-name-toggle-django-helm-secret
               mountPath: /mnt/secrets-store

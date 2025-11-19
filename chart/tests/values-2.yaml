@@ -85,6 +85,9 @@ worker:
   queues:
     # NOTE: Make sure keys are lowercase
     default:
+      env:
+        USER_PROXY_SERVER_REF: PROXY_1
+        USER_PROXY_SERVER_REF2: PROXY_2
       resources:
         requests:
           cpu: "0.1"
