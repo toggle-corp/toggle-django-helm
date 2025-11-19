@@ -487,6 +487,23 @@ spec:
       storage: "2Gi"
   storageClassName: longhorn
 ---
+# Source: toggle-django-helm/templates/extraManifests.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-local-cache
+  labels:
+    app: release-name-toggle-django-helm
+    environment: ALPHA
+    release: release-name
+spec:
+  storageClassName:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi
+---
 # Source: toggle-django-helm/charts/minio/templates/service.yaml
 apiVersion: v1
 kind: Service

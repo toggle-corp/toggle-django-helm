@@ -147,3 +147,20 @@ extraManifests:
           isWALArchiver: true
           parameters:
             barmanObjectName: aws-s3-store
+  # Local cache volume
+  local-cache-pvc: |
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: my-local-cache
+      labels:
+        app: {{ include "django-app.fullname" . }}
+        environment: {{ .Values.environment }}
+        release: {{ .Release.Name }}
+    spec:
+      storageClassName:
+      accessModes:
+        - ReadWriteMany
+      resources:
+        requests:
+          storage: 2Gi
