@@ -1,3 +1,8 @@
+global:
+  security:
+    # XXX: Bitnami changes
+    allowInsecureImages: true
+
 environment: PROD
 
 appTypeEnvName: "DJANGO_APP_TYPE"
@@ -25,6 +30,9 @@ redis:
   enabled: true
   architecture: standalone
   fullnameOverride: django-redis
+  # XXX: Bitnami changes
+  image:
+    repository: bitnamilegacy/redis
   auth:
     enabled: false
   master:
@@ -37,6 +45,9 @@ postgresql:
   enabled: false
   fullnameOverride: "django-postgres"
   architecture: standalone
+  image:
+    # XXX: Bitnami changes
+    repository: bitnamilegacy/postgresql
   auth:
     postgresPassword: ""
     database: ""
@@ -53,6 +64,9 @@ minio:
   disableWebUI: true
   mode: standalone
   fullnameOverride: minio
+  # XXX: Bitnami changes
+  image:
+    repository: bitnamilegacy/minio
   global:
     defaultStorageClass:
   apiIngress:
@@ -80,6 +94,9 @@ minio:
 rabbitmq:
   enabled: false
   fullnameOverride: "django-rabbitmq"
+  # XXX: Bitnami changes
+  image:
+    repository: bitnamilegacy/rabbitmq
   auth:
     username: django
     password:

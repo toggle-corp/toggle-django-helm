@@ -727,7 +727,7 @@ spec:
         sysctls: []
       containers:
         - name: minio
-          image: docker.io/bitnami/minio:2024.12.18-debian-12-r1
+          image: docker.io/bitnamilegacy/minio:2024.12.18-debian-12-r1
           imagePullPolicy: "IfNotPresent"
           securityContext:
             allowPrivilegeEscalation: false
@@ -1118,7 +1118,7 @@ spec:
       hostIPC: false
       containers:
         - name: postgresql
-          image: docker.io/bitnami/postgresql:17.2.0-debian-12-r8
+          image: docker.io/bitnamilegacy/postgresql:17.2.0-debian-12-r8
           imagePullPolicy: "IfNotPresent"
           securityContext:
             allowPrivilegeEscalation: false
@@ -1197,7 +1197,6 @@ spec:
                 - -e
                 - |
                   exec pg_isready -U "postgres" -d "dbname=my-app" -h 127.0.0.1 -p 5432
-                  [ -f /opt/bitnami/postgresql/tmp/.initialized ] || [ -f /bitnami/postgresql/.initialized ]
           resources:
             limits:
               cpu: 150m
@@ -1306,7 +1305,7 @@ spec:
       terminationGracePeriodSeconds: 30
       containers:
         - name: redis
-          image: docker.io/bitnami/redis:7.4.2-debian-12-r0
+          image: docker.io/bitnamilegacy/redis:7.4.2-debian-12-r0
           imagePullPolicy: "IfNotPresent"
           securityContext:
             allowPrivilegeEscalation: false
@@ -1689,7 +1688,7 @@ spec:
               memory: 128Mi
       containers:
         - name: minio
-          image: docker.io/bitnami/minio:2024.12.18-debian-12-r1
+          image: docker.io/bitnamilegacy/minio:2024.12.18-debian-12-r1
           imagePullPolicy: "IfNotPresent"
           securityContext:
             allowPrivilegeEscalation: false
