@@ -992,6 +992,7 @@ spec:
               value: "worker"
 ---
 # Source: toggle-django-helm/templates/worker/deployment.yaml
+# Queue: default
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1417,6 +1418,7 @@ spec:
         storageClassName: longhorn
 ---
 # Source: toggle-django-helm/templates/argo-hooks/hook-job.yaml
+# Hook: collect-static
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -1460,6 +1462,7 @@ spec:
               value: "hook"
 ---
 # Source: toggle-django-helm/templates/argo-hooks/hook-job.yaml
+# Hook: db-migrate
 apiVersion: batch/v1
 kind: Job
 metadata:

@@ -1,25 +1,30 @@
 {{- if .Values.extraManifests }}
-  {{- $extra := .Values.extraManifests }}
-  {{- if kindIs "map" $extra }}
-    {{- range $key, $val := $extra }}
----
-{{- if kindIs "string" $val }}
-{{ tpl $val $ }}
-{{- else }}
-{{ tpl (toYaml $val) $ }}
-{{- end }}
-    {{- end }}
 
-  {{- else if kindIs "slice" $extra }}
-    {{- range $val := $extra }}
+{{- $extra := .Values.extraManifests }}
+
+{{- if kindIs "map" $extra }}
+{{- range $key, $val := $extra }}
+---
+# Manifest: {{ $key }}
+{{- if kindIs "string" $val }}
+{{ tpl $val $ }}
+{{- else }}
+{{ tpl (toYaml $val) $ }}
+{{- end }}
+{{- end }}
+
+{{- else if kindIs "slice" $extra }}
+{{- range $val := $extra }}
 ---
 {{- if kindIs "string" $val }}
 {{ tpl $val $ }}
 {{- else }}
 {{ tpl (toYaml $val) $ }}
 {{- end }}
-    {{- end }}
-  {{- else }}
-    {{- fail "Values.extraManifests must be a map or array" }}
-  {{- end }}
+{{- end }}
+
+{{- else }}
+{{- fail "Values.extraManifests must be a map or array" }}
+{{- end }}
+
 {{- end }}

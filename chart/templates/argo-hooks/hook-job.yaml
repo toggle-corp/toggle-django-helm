@@ -5,6 +5,7 @@
 {{- if $hook.enabled }}
 
 ---
+# Hook: {{ $hookName }}
 apiVersion: batch/v1
 kind: Job
 metadata:

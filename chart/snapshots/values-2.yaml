@@ -1066,6 +1066,7 @@ spec:
               readOnly: true
 ---
 # Source: toggle-django-helm/templates/worker/deployment.yaml
+# Queue: default
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1530,6 +1531,7 @@ spec:
         storageClassName: longhorn
 ---
 # Source: toggle-django-helm/templates/argo-hooks/hook-job.yaml
+# Hook: collect-static
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -1608,6 +1610,7 @@ spec:
               readOnly: true
 ---
 # Source: toggle-django-helm/templates/argo-hooks/hook-job.yaml
+# Hook: db-migrate
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -1685,6 +1688,7 @@ spec:
               readOnly: true
 ---
 # Source: toggle-django-helm/templates/argo-hooks/hook-job.yaml
+# Hook: my-custom-command
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -1764,6 +1768,7 @@ spec:
               readOnly: true
 ---
 # Source: toggle-django-helm/templates/cronjobs/deployment.yaml
+# Job: dummy-01
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -1849,6 +1854,7 @@ spec:
                   readOnly: true
 ---
 # Source: toggle-django-helm/templates/cronjobs/deployment.yaml
+# Job: dummy-02
 apiVersion: batch/v1
 kind: CronJob
 metadata:

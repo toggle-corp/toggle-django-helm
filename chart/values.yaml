@@ -201,13 +201,13 @@ worker:
         - "4"
         - "--max-tasks-per-child"
         - "10"
-      resources:
-        requests:
-          cpu: "1"
-          memory: 1Gi
-        limits:
-          cpu: "1"
-          memory: 2Gi
+      resources: {}
+        # requests:
+        #   cpu: "1"
+        #   memory: 1Gi
+        # limits:
+        #   cpu: "1"
+        #   memory: 2Gi
 
 cronjobs:
   enabled: true

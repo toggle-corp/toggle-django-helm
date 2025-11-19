@@ -488,6 +488,7 @@ spec:
   storageClassName: longhorn
 ---
 # Source: toggle-django-helm/templates/extraManifests.yaml
+# Manifest: local-cache-pvc
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -999,6 +1000,7 @@ spec:
               value: "worker"
 ---
 # Source: toggle-django-helm/templates/worker/deployment.yaml
+# Queue: default
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -1425,6 +1427,7 @@ spec:
         storageClassName: longhorn
 ---
 # Source: toggle-django-helm/templates/argo-hooks/hook-job.yaml
+# Hook: collect-static
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -1469,6 +1472,7 @@ spec:
               value: "hook"
 ---
 # Source: toggle-django-helm/templates/argo-hooks/hook-job.yaml
+# Hook: db-migrate
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -1564,6 +1568,7 @@ spec:
                   number: 80
 ---
 # Source: toggle-django-helm/templates/extraManifests.yaml
+# Manifest: cnpg_cluster
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -1583,6 +1588,7 @@ spec:
     size: 300Mi
 ---
 # Source: toggle-django-helm/templates/extraManifests.yaml
+# Manifest: cnpg_object_store
 apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata:
@@ -1603,6 +1609,7 @@ spec:
   retentionPolicy: 30d
 ---
 # Source: toggle-django-helm/templates/extraManifests.yaml
+# Manifest: cnpg_backup_schedule
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
