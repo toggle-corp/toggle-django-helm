@@ -39,8 +39,8 @@ jobs:
           OCI_REPO=$(echo $OCI_REPO | tr '[:upper:]' '[:lower:]')
 
           # Helm
-          HELM_TARGET_REVISION=$(helm show chart ./toggle-django-helm/ | grep '^version:' | awk '{print $2}')
-          HELM_CHART=$(helm show chart ./toggle-django-helm/ | grep '^name:' | awk '{print $2}')
+          HELM_TARGET_REVISION=$(helm show chart ./chart/ | grep '^version:' | awk '{print $2}')
+          HELM_CHART=$(helm show chart ./chart/ | grep '^name:' | awk '{print $2}')
 
           echo "helm_oci_repo=$OCI_REPO" >> $GITHUB_OUTPUT
           echo "helm_chart=$HELM_CHART" >> $GITHUB_OUTPUT
@@ -56,23 +56,23 @@ jobs:
 
       - name: 🐳 Helm dependency
         run: |
-          yq --indent 0 '.dependencies | map(select(.repository | test("^oci:") | not)) | map(["helm", "repo", "add", .name, .repository] | join(" ")) | .[]' ./toggle-django-helm/Chart.lock | sh --
-          helm dependency build ./toggle-django-helm/
+          yq --indent 0 '.dependencies | map(select(.repository | test("^oci:") | not)) | map(["helm", "repo", "add", .name, .repository] | join(" ")) | .[]' ./chart/Chart.lock | sh --
+          helm dependency build ./chart/
 
       - name: Helm lint
-        run: helm lint ./toggle-django-helm --values ./toggle-django-helm/linter_values.yaml
+        run: helm lint ./chart --values ./chart/linter_values.yaml
 
       - name: Helm template
         run: |
-          helm template ./toggle-django-helm --values ./toggle-django-helm/linter_values.yaml
+          helm template ./chart --values ./chart/linter_values.yaml
 
           # Test using all test values
-          for values_file in ./toggle-django-helm/tests/values-*.yaml; do
-            helm template ./toggle-django-helm --values "$values_file"
+          for values_file in ./chart/tests/values-*.yaml; do
+            helm template ./chart --values "$values_file"
           done
 
       - name: Package Helm Chart
-        run: helm package ./toggle-django-helm/ -d ./toggle-django-helm/.helm-charts
+        run: helm package ./chart/ -d ./chart/.helm-charts
 
       - name: Push Helm Chart
         id: push
@@ -82,7 +82,7 @@ jobs:
           HELM_CHART: "${{ steps.prep.outputs.helm_chart }}"
           HELM_TARGET_REVISION: "${{ steps.prep.outputs.helm_target_revision }}"
         run: |
-          PACKAGE_FILE=$(ls ./toggle-django-helm/.helm-charts/*.tgz | head -n 1)
+          PACKAGE_FILE=$(ls ./chart/.helm-charts/*.tgz | head -n 1)
           echo "# Helm Chart" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```yaml' >> $GITHUB_STEP_SUMMARY

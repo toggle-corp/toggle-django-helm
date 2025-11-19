@@ -85,9 +85,9 @@ echo "Preparing $version_tag..."
 # update the version
 msg="# managed by release.sh"
 
-sed -E -i "s/^version: .* $msg$/version: ${version_tag}  $msg/" "./toggle-django-helm/Chart.yaml"
+sed -E -i "s/^version: .* $msg$/version: ${version_tag}  $msg/" "./chart/Chart.yaml"
 
-git add ./toggle-django-helm/Chart.yaml
+git add ./chart/Chart.yaml
 
 # update the changelog
 git-cliff "$START_COMMIT..HEAD" --config cliff.toml --tag "$version_tag" > CHANGELOG.md
