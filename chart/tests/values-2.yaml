@@ -100,8 +100,18 @@ argoHook:
       hook: PostSync
       preserveHistory: true
       command: ["/bin/bash", "-c"]
+      env:
+        KEY_1: VALUE_1
+        KEY_2: VALUE_2
       args:
         - "date --iso-8601 && ls"
+    my-another-custom-command:
+      enabled: true
+      hook: PostSync
+      preserveHistory: true
+      command: ["/bin/bash", "-c"]
+      args:
+        - "gdate --iso-8601 && ls"
 
 cronjobs:
   enabled: true

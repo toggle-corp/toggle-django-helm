@@ -1688,6 +1688,86 @@ spec:
               readOnly: true
 ---
 # Source: toggle-django-helm/templates/argo-hooks/hook-job.yaml
+# Hook: my-another-custom-command
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: release-name-toggle-django-helm-my-another-custom-command-
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+spec:
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/configmap: de0584c99be865e5e466cd78f1d852c5941906498c945aded88f9c23ada87de0
+        aws.workload.identity/use: "true"
+        aws.workload.identity/use2: "true"
+        aws.workload.identity/use3: "true"
+      labels:
+        app: release-name-toggle-django-helm
+        component: argo-hooks
+        azure.workload.identity/use: "true"
+    spec:
+      restartPolicy: "Never"
+      volumes:
+        - name: release-name-toggle-django-helm-secret
+          csi:
+            driver: "secrets-store.csi.k8s.io"
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: release-name-toggle-django-helm-secret-provider
+        - csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: "true"
+            volumeAttributes:
+              secretProviderClass: my-secret-provider
+          name: my-stuff
+      serviceAccountName: release-name-toggle-django-helm
+      containers:
+        - name: my-another-custom-command
+          image: "ghcr.io/example/example:v1.0.1"
+          imagePullPolicy: IfNotPresent
+          imagePullSecrets:
+            - name: regcred
+          command: 
+            - /bin/bash
+            - -c
+          args: 
+            - gdate --iso-8601 && ls
+          resources:
+            limits:
+              cpu: "4"
+              memory: 2Gi
+            requests:
+              cpu: "0.1"
+              memory: 1Gi
+          envFrom:
+            - secretRef:
+                name: release-name-toggle-django-helm-secret
+            - secretRef:
+                name: my-custom-secrets
+            - configMapRef:
+                name: release-name-toggle-django-helm-env-name
+            - configMapRef:
+                name: my-custom-envs
+          env:
+            - name: DJANGO_APP_TYPE
+              value: "hook"
+            - name: SPECIAL_LEVEL_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: special.how
+                  name: special-config
+          volumeMounts:
+            - name: release-name-toggle-django-helm-secret
+              mountPath: /mnt/secrets-store
+              readOnly: true
+            - mountPath: /mnt/secrets-store
+              name: my-secret
+              readOnly: true
+---
+# Source: toggle-django-helm/templates/argo-hooks/hook-job.yaml
 # Hook: my-custom-command
 apiVersion: batch/v1
 kind: Job
@@ -1759,6 +1839,10 @@ spec:
                 configMapKeyRef:
                   key: special.how
                   name: special-config
+            - name: KEY_1
+              value: "VALUE_1"
+            - name: KEY_2
+              value: "VALUE_2"
           volumeMounts:
             - name: release-name-toggle-django-helm-secret
               mountPath: /mnt/secrets-store
