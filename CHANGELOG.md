@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.5-dev0](https://github.com/toggle-corp/toggle-django-helm/compare/0.2.4..0.2.5-dev0) - 2025-11-26
+### Changes:
+
+#### 🚀  Features
+
+- Allow additional env config per hooks - ([da379ef](https://github.com/toggle-corp/toggle-django-helm/commit/da379ef5c19120b22413394f0f950c910f936d1e))
+
+
 ## [0.2.4](https://github.com/toggle-corp/toggle-django-helm/compare/0.2.3..0.2.4) - 2025-11-19
 ### Changes:
 
@@ -18,9 +26,6 @@
 
 - Rename toggle-django-helm dir to chart - ([b42ffff](https://github.com/toggle-corp/toggle-django-helm/commit/b42ffffaac028d9411708d75b318836132bfb198))
 
-### :tada: New Contributors (1)
-
-- [@thenav56](https://github.com/thenav56) made their first contribution
 
 ## [0.2.3](https://github.com/toggle-corp/toggle-django-helm/compare/0.2.2..0.2.3) - 2025-11-14
 ### Changes:
