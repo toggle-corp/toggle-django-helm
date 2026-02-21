@@ -1,0 +1,53 @@
+suite: config configmap
+templates:
+  - templates/config/configmap.yaml
+tests:
+  - it: should render ConfigMap with correct metadata labels and env data (tpl evaluated)
+    set:
+      environment: TEST
+      ingress:
+        host: myapp.example.com
+      postgresql:
+        auth:
+          database: "my-app"
+      env:
+        ENV_1: VALUE_1
+        # tpl evaluation from values
+        POSTGRES_DB: "{{ .Values.postgresql.auth.database }}"
+        INGRESS_HOST: "{{ .Values.ingress.host }}"
+
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - isAPIVersion:
+          of: v1
+      - isNotEmpty:
+          path: metadata.name
+      - equal:
+          path: metadata.labels.environment
+          value: TEST
+      - equal:
+          path: metadata.labels.release
+          value: RELEASE-NAME
+      - isNotEmpty:
+          path: metadata.labels.app
+      - equal:
+          path: data.ENV_1
+          value: "VALUE_1"
+      - equal:
+          path: data.POSTGRES_DB
+          value: "my-app"
+      - equal:
+          path: data.INGRESS_HOST
+          value: "myapp.example.com"
+
+  - it: should render ConfigMap with empty data when env is empty
+    set:
+      environment: TEST
+      env: {}
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.labels.environment
+          value: TEST
