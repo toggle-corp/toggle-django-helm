@@ -1,0 +1,73 @@
+suite: extraManifests tests
+templates:
+  - templates/extraManifests.yaml
+tests:
+  - it: should render 0 documents when extraManifests is not set
+    set: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render 0 documents when extraManifests is an empty list
+    set:
+      extraManifests: []
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render 0 documents when extraManifests is an empty map
+    set:
+      extraManifests: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render multiple documents when extraManifests is a slice of objects
+    set:
+      extraManifests:
+        - apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: cm-one
+          data:
+            A: "1"
+        - apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: ns-two
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should render a document when extraManifests contains a string template (tpl evaluated)
+    set:
+      environment: TEST
+      extraManifests:
+        - |
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: "cm-{{ .Values.environment | lower }}"
+          data:
+            ENV: "{{ .Values.environment }}"
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: should render multiple documents when extraManifests is a map (one manifest per key)
+    set:
+      extraManifests:
+        first:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: ConfigMap-first
+        second:
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: ServiceAccount-second
+    asserts:
+      - hasDocuments:
+          count: 2
+
