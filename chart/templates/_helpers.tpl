@@ -131,13 +131,51 @@ Generate env configs for deployments
 {{- end }}
 
 {{/*
+Normalize a dict-OR-array map block into a YAML list of {name, ...spec} entries.
+- Dict form: keys become "name"; values are merged in as the rest of the spec.
+- Array form: each entry must already have "name". Returned verbatim.
+- nil/empty: returns nothing.
+Usage: include "banjo.dictOrArray" $value  →  yaml-formatted list
+*/}}
+{{- define "banjo.dictOrArray" -}}
+{{- $value := . -}}
+{{- if kindIs "map" $value -}}
+{{- $list := list -}}
+{{- range $k, $v := $value -}}
+{{- $entry := dict "name" $k -}}
+{{- if kindIs "map" $v -}}
+{{- range $kk, $vv := $v -}}
+{{- $entry = set $entry $kk $vv -}}
+{{- end -}}
+{{- end -}}
+{{- $list = append $list $entry -}}
+{{- end -}}
+{{- toYaml $list -}}
+{{- else if kindIs "slice" $value -}}
+{{- toYaml $value -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Render the top-level .Values.extraEnvVars as a k8s pod env array.
+Accepts either dict (keyed by env-var name) or array (with explicit name: field).
+Dict-form values are full k8s env-var specs minus name (use {value: ...} or {valueFrom: ...}).
+*/}}
+{{- define "banjo.envVarsBlock" -}}
+{{- $vars := .Values.extraEnvVars -}}
+{{- if $vars -}}
+{{ include "banjo.dictOrArray" $vars }}
+{{- end -}}
+{{- end }}
+
+{{/*
 Generate env configs for app types
 */}}
 {{- define "banjo.envTemplate" -}}
 - name: {{ .Values.appTypeEnvName }}
   value: {{ .Type | quote }}
-{{- if .Values.extraEnvVars }}
-{{ toYaml .Values.extraEnvVars }}
+{{- with (include "banjo.envVarsBlock" (dict "Values" .Values)) }}
+{{ . }}
 {{- end }}
 {{- end }}
 

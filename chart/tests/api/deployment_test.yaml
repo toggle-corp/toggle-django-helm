@@ -182,3 +182,65 @@ tests:
           content:
             name: APP_VERSION
             value: "v1.2.3"
+
+  - it: should render extraEnvVars when given as array form (k8s native)
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+      extraEnvVars:
+        - name: ARRAY_KEY
+          value: literal
+        - name: SECRET_REF_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-secret
+              key: my-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ARRAY_KEY
+            value: literal
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SECRET_REF_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-secret
+                key: my-key
+
+  - it: should render extraEnvVars when given as dict form (keyed by env-var name)
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+      extraEnvVars:
+        DICT_KEY:
+          value: literal
+        DICT_REF_KEY:
+          valueFrom:
+            configMapKeyRef:
+              name: my-config
+              key: my-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DICT_KEY
+            value: literal
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DICT_REF_KEY
+            valueFrom:
+              configMapKeyRef:
+                name: my-config
+                key: my-key
