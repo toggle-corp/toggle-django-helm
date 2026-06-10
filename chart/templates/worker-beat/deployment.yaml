@@ -12,6 +12,7 @@ metadata:
     release: {{ .Release.Name }}
 spec:
   replicas: 1  # This should only 1
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   selector:
     matchLabels:
       app: {{ include "banjo.fullname" . }}

@@ -36,6 +36,9 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].image
           value: "ghcr.io/example/app:v1"
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 1
 
   - it: should override image with worker.flower.image
     template: templates/celery-flower/deployment.yaml

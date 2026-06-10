@@ -2,6 +2,10 @@ environment: PROD
 
 appTypeEnvName: "DJANGO_APP_TYPE"
 
+# Number of old ReplicaSets retained per Deployment for rollback (k8s default is 10).
+# Applies chart-wide to every Deployment the chart renders.
+revisionHistoryLimit: 1
+
 podLabels: {}
 podAnnotations: {}
 podVolumes: []

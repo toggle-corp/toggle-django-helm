@@ -20,6 +20,7 @@ spec:
   {{- if not (eq $config.replicaCount nil) }}
   replicas: {{ $config.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: {{ $.Values.revisionHistoryLimit }}
   selector:
     matchLabels:
       app: {{ include "banjo.fullname" $ }}

@@ -40,6 +40,23 @@ tests:
           value: ["/code/deploy/run_prod.sh"]
       - notExists:
           path: spec.replicas
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 1
+
+  - it: should override revisionHistoryLimit when set chart-wide
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      revisionHistoryLimit: 5
+      api:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 5
 
   - it: should set replicas when api.replicaCount is set
     template: templates/api/deployment.yaml
