@@ -28,9 +28,19 @@ worker:
     resources:
       requests:
         cpu: "0.1"
+  queueDefaults:
+    commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        memory: "512Mi"
   queues:
     # NOTE: Make sure keys are lowercase
     default:
+      enabled: true
+      celeryArgs: ["-Q", "celery", "--concurrency", "4"]
       resources:
         requests:
           cpu: "0.1"

@@ -52,11 +52,17 @@ worker:
     resources:
       requests:
         cpu: "0.1"
+  queueDefaults:
+    commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
+    extraEnv:
+      SHARED_QUEUE_KEY: SHARED_VALUE
   queues:
     # NOTE: Make sure keys are lowercase
     default:
+      enabled: true
       replicaCount: 0
-      env:
+      celeryArgs: ["-Q", "celery"]
+      extraEnv:
         USER_PROXY_SERVER_REF: PROXY_1
         USER_PROXY_SERVER_REF2: PROXY_2
       resources:

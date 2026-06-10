@@ -31,10 +31,14 @@ worker:
     resources:
       requests:
         cpu: "0.1"
+  queueDefaults:
+    commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
   queues:
     # NOTE: Make sure keys are lowercase
     default:
+      enabled: true
       replicaCount: 1
+      celeryArgs: ["-Q", "celery"]
       resources:
         requests:
           cpu: "0.1"

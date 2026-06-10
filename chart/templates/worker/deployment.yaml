@@ -1,7 +1,18 @@
 {{- if .Values.worker.enabled }}
 
-{{- range $queue_name, $config := .Values.worker.queues }}
+{{- $defaults := default dict .Values.worker.queueDefaults -}}
+{{- $queues := list -}}
+{{- if kindIs "map" .Values.worker.queues -}}
+  {{- range $name, $cfg := .Values.worker.queues -}}
+    {{- $queues = append $queues (merge (dict "name" $name) (default dict $cfg)) -}}
+  {{- end -}}
+{{- else if kindIs "slice" .Values.worker.queues -}}
+  {{- $queues = .Values.worker.queues -}}
+{{- end -}}
+
+{{- range $config := $queues }}
 {{- if $config.enabled }}
+{{- $queue_name := $config.name }}
 
 ---
 # Queue: {{ $queue_name }}
@@ -30,6 +41,12 @@ spec:
     metadata:
       annotations:
         {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
+        {{- with $defaults.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $config.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         app: {{ include "banjo.fullname" $ }}
         component: worker
@@ -42,9 +59,9 @@ spec:
       {{- end }}
       containers:
         - name: worker
+          {{- $command := concat (default (list) $defaults.commandPrefix) (default (list) $config.celeryArgs) }}
           command:
-            {{- toYaml $.Values.worker.queueCommandPrefix | nindent 12 }}
-            {{- toYaml $config.celeryArgs | nindent 12 }}
+            {{- toYaml $command | nindent 12 }}
           {{- include "banjo.imageConfig"
               (dict "Default" $.Values.image "Override" $.Values.worker.image)
               | nindent 10
@@ -52,7 +69,7 @@ spec:
           # TODO: livenessProbe
           resources:
             {{- include "banjo.resourcesConfig"
-                (dict "Default" $.Values.worker.queueDefaultResources "Override" $config.resources)
+                (dict "Default" $defaults.resources "Override" $config.resources)
                 | nindent 12
             }}
           envFrom:
@@ -62,12 +79,10 @@ spec:
                 (dict "Values" $.Values "Type" "worker" )
                 | nindent 12
             }}
-            {{- with $config.env }}
-            {{- range $envKey, $envVal := . }}
-            - name: {{ $envKey }}
-              value: {{ tpl $envVal $ | quote }}
-            {{- end }}
-            {{- end }}
+            {{- include "banjo.extraEnvBlock"
+                (dict "Default" $defaults "Override" $config "Context" $)
+                | nindent 12
+            }}
           {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}

@@ -90,38 +90,41 @@ worker:
       limits:
         cpu: "1"
         memory: 1Gi
-  queueDefaultResources:
-    requests:
-      cpu: "1"
-      memory: 1Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  queueCommandPrefix:
-    - "celery"
-    - "-A"
-    - "myapp"
-    - "worker"
-    - "-l"
-    - "INFO"
-  queues:
-    # NOTE: Make sure keys are lowercase
-    default:
-      enabled: true
-      celeryArgs:
-        - "-Q"
-        - "celery"
-        - "--concurrency"
-        - "4"
-        - "--max-tasks-per-child"
-        - "10"
-      resources: {}
-        # requests:
-        #   cpu: "1"
-        #   memory: 1Gi
-        # limits:
-        #   cpu: "1"
-        #   memory: 2Gi
+  # Defaults applied to each queue worker unless overridden per-queue.
+  queueDefaults:
+    commandPrefix: []
+      # - "celery"
+      # - "-A"
+      # - "myapp"
+      # - "worker"
+      # - "-l"
+      # - "INFO"
+    extraEnv: {}
+    annotations: {}
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        # No CPU limit by chart convention.
+        memory: "512Mi"
+  # Map of queue name → per-queue spec. Set as a dict to merge with defaults
+  # via -f overlay; set as an array to wholesale reset.
+  # NOTE: Make sure keys are lowercase.
+  queues: {}
+    # default:
+    #   enabled: true
+    #   # replicaCount: 1     # omit to let KEDA scale; set for static count
+    #   celeryArgs:
+    #     - "-Q"
+    #     - "celery"
+    #     - "--concurrency"
+    #     - "4"
+    #     - "--max-tasks-per-child"
+    #     - "10"
+    #   extraEnv: {}
+    #   annotations: {}
+    #   resources: {}
 
 cronjobs:
   enabled: true

@@ -32,10 +32,13 @@ worker:
     resources:
       requests:
         cpu: "0.1"
+  queueDefaults:
+    commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
+  # Array-form (wholesale reset) for testing dict-or-array support
   queues:
-    # NOTE: Make sure keys are lowercase
-    default:
-      enabled: false
+    - name: array-form-queue
+      enabled: true
+      celeryArgs: ["-Q", "array-form"]
       resources:
         requests:
           cpu: "0.1"

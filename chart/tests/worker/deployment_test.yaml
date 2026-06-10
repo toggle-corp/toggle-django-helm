@@ -13,7 +13,8 @@ tests:
         tag: v1
       worker:
         enabled: true
-        queueCommandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
+        queueDefaults:
+          commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
         queues:
           default:
             enabled: true
@@ -40,7 +41,8 @@ tests:
         tag: v1
       worker:
         enabled: true
-        queueCommandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
+        queueDefaults:
+          commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
         queues:
           default:
             enabled: true
@@ -79,7 +81,7 @@ tests:
           path: spec.revisionHistoryLimit
           value: 1
 
-  - it: should use queueDefaultResources when queue resources not set
+  - it: should use queueDefaults.resources when queue resources not set
     template: templates/worker/deployment.yaml
     set:
       image:
@@ -87,13 +89,14 @@ tests:
         tag: v1
       worker:
         enabled: true
-        queueDefaultResources:
-          requests:
-            cpu: "1"
-            memory: 1Gi
-          limits:
-            cpu: "1"
-            memory: 2Gi
+        queueDefaults:
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
         queues:
           default:
             enabled: true
@@ -155,3 +158,94 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: should render equivalent queue from dict form and array form
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          commandPrefix: ["celery", "-A", "myapp", "worker"]
+        queues:
+          - name: priority
+            enabled: true
+            celeryArgs: ["-Q", "priority"]
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.labels.queue
+          value: priority
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["celery", "-A", "myapp", "worker", "-Q", "priority"]
+
+  - it: should merge queueDefaults.extraEnv with per-queue extraEnv (queue wins)
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          commandPrefix: ["celery", "-A", "myapp", "worker"]
+          extraEnv:
+            SHARED_KEY: "from-defaults"
+            LOG_LEVEL: "INFO"
+        queues:
+          priority:
+            enabled: true
+            celeryArgs: ["-Q", "priority"]
+            extraEnv:
+              LOG_LEVEL: "DEBUG"
+              QUEUE_KEY: "from-queue"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARED_KEY
+            value: "from-defaults"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LOG_LEVEL
+            value: "DEBUG"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: QUEUE_KEY
+            value: "from-queue"
+
+  - it: should apply queueDefaults.resources with per-queue override (no CPU limit by default)
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          commandPrefix: ["celery"]
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              memory: "512Mi"
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "100m"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: "512Mi"
+      - notExists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
