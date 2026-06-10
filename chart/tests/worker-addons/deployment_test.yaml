@@ -1,0 +1,180 @@
+suite: Worker Addons Deployment tests
+templates:
+  - templates/worker-addons/deployment.yaml
+  - templates/config/secret.yaml
+  - templates/config/configmap.yaml
+tests:
+  - it: should not render anything when worker.addons is empty
+    template: templates/worker-addons/deployment.yaml
+    set:
+      worker:
+        enabled: true
+        addons: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render Deployment per enabled addon (dict form)
+    template: templates/worker-addons/deployment.yaml
+    set:
+      environment: TEST
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
+          flower:
+            enabled: true
+            command: ["celery", "-A", "myapp", "flower"]
+          disabled-addon:
+            enabled: false
+            command: ["something"]
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: should render addon with command, image, and addon label
+    template: templates/worker-addons/deployment.yaml
+    documentSelector:
+      path: metadata.labels.addon
+      value: beat
+    set:
+      environment: TEST
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.labels.component
+          value: worker-addon
+      - equal:
+          path: metadata.labels.addon
+          value: beat
+      - equal:
+          path: metadata.labels.environment
+          value: TEST
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "ghcr.io/example/app:v1"
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 1
+      - notExists:
+          path: spec.replicas
+
+  - it: should render replicas when addon.replicaCount is set
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            replicaCount: 1
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 1
+
+  - it: should render equivalent addon from array form
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          - name: exporter
+            enabled: true
+            command: ["celery-exporter"]
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.labels.addon
+          value: exporter
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["celery-exporter"]
+
+  - it: should merge addonDefaults.extraEnv with per-addon extraEnv
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          extraEnv:
+            SHARED: "from-defaults"
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            extraEnv:
+              ADDON_KEY: "from-addon"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARED
+            value: "from-defaults"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ADDON_KEY
+            value: "from-addon"
+
+  - it: should ship default resources with memory limit but no CPU limit
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.limits.memory
+      - notExists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+
+  - it: should not render when worker.enabled is false
+    template: templates/worker-addons/deployment.yaml
+    set:
+      worker:
+        enabled: false
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - hasDocuments:
+          count: 0

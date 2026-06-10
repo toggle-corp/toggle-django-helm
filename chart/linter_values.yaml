@@ -19,15 +19,18 @@ worker:
   image:
     name: ghcr.io/example/example
     tag: v1.0.1
-  beat:
-    resources:
-      requests:
-        cpu: "0.1"
-  flower:
-    enabled: true
-    resources:
-      requests:
-        cpu: "0.1"
+  addons:
+    beat:
+      enabled: true
+      command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
+      replicaCount: 1
+    flower:
+      enabled: true
+      command: ["celery", "-A", "myapp", "flower", "--port=8000"]
+      service:
+        enabled: true
+        port: 80
+        targetPort: 8000
   queueDefaults:
     commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
     resources:

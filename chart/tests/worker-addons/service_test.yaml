@@ -1,0 +1,64 @@
+suite: Worker Addons Service tests
+templates:
+  - templates/worker-addons/service.yaml
+tests:
+  - it: should render no Service when no addon has service enabled
+    template: templates/worker-addons/service.yaml
+    set:
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render a Service only for addons with service.enabled
+    template: templates/worker-addons/service.yaml
+    set:
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery", "beat"]
+          flower:
+            enabled: true
+            command: ["celery", "flower"]
+            service:
+              enabled: true
+              port: 80
+              targetPort: 8000
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.labels.addon
+          value: flower
+      - equal:
+          path: spec.ports[0].port
+          value: 80
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 8000
+
+  - it: should not render Service when addon is disabled even if service.enabled
+    template: templates/worker-addons/service.yaml
+    set:
+      worker:
+        enabled: true
+        addons:
+          flower:
+            enabled: false
+            command: ["celery", "flower"]
+            service:
+              enabled: true
+              port: 80
+              targetPort: 8000
+    asserts:
+      - hasDocuments:
+          count: 0

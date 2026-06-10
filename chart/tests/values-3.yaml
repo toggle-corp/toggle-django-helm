@@ -23,15 +23,15 @@ worker:
   image:
     name: ghcr.io/example/example
     tag: v1.0.1
-  beat:
-    resources:
-      requests:
-        cpu: "0.1"
-  flower:
-    enabled: true
-    resources:
-      requests:
-        cpu: "0.1"
+  # Array-form (wholesale reset) for testing dict-or-array support
+  addons:
+    - name: flower
+      enabled: true
+      command: ["celery", "-A", "myapp", "flower"]
+      service:
+        enabled: true
+        port: 80
+        targetPort: 8000
   queueDefaults:
     commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
   # Array-form (wholesale reset) for testing dict-or-array support

@@ -1,0 +1,100 @@
+{{- if .Values.worker.enabled }}
+
+{{- $defaults := default dict .Values.worker.addonDefaults -}}
+{{- $addons := list -}}
+{{- if kindIs "map" .Values.worker.addons -}}
+  {{- range $name, $cfg := .Values.worker.addons -}}
+    {{- $addons = append $addons (merge (dict "name" $name) (default dict $cfg)) -}}
+  {{- end -}}
+{{- else if kindIs "slice" .Values.worker.addons -}}
+  {{- $addons = .Values.worker.addons -}}
+{{- end -}}
+
+{{- range $addon := $addons }}
+{{- if $addon.enabled }}
+{{- $addon_name := $addon.name }}
+
+---
+# Addon: {{ $addon_name }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "banjo.fullname" $ }}-worker-{{ $addon_name }}
+  {{- with (include "banjo.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
+  labels:
+    app: {{ include "banjo.fullname" $ }}
+    component: worker-addon
+    addon: {{ $addon_name }}
+    environment: {{ $.Values.environment }}
+    release: {{ $.Release.Name }}
+spec:
+  {{- if not (eq $addon.replicaCount nil) }}
+  replicas: {{ $addon.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ $.Values.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      app: {{ include "banjo.fullname" $ }}
+      component: worker-addon
+      addon: {{ $addon_name }}
+  template:
+    metadata:
+      annotations:
+        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
+        {{- with $defaults.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $addon.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        app: {{ include "banjo.fullname" $ }}
+        component: worker-addon
+        addon: {{ $addon_name }}
+        {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
+    spec:
+      {{- with (include "banjo.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- if $.Values.serviceAccount.create }}
+      serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
+      {{- end }}
+      containers:
+        - name: {{ $addon_name }}
+          {{- include "banjo.imageConfig"
+              (dict "Default" $.Values.image "Override" $.Values.worker.image)
+              | nindent 10
+          }}
+          {{- with $addon.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $addon.service }}
+          {{- if .enabled }}
+          ports:
+            - name: http
+              containerPort: {{ .targetPort }}
+              protocol: TCP
+          {{- end }}
+          {{- end }}
+          resources:
+            {{- include "banjo.resourcesConfig"
+                (dict "Default" $defaults.resources "Override" $addon.resources)
+                | nindent 12
+            }}
+          envFrom:
+            {{- include "banjo.envFromTemplate" $ | nindent 12 }}
+          env:
+            {{- include "banjo.envTemplate"
+                (dict "Values" $.Values "Type" "worker" )
+                | nindent 12
+            }}
+            {{- include "banjo.extraEnvBlock"
+                (dict "Default" $defaults "Override" $addon "Context" $)
+                | nindent 12
+            }}
+          {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
+
+{{- end }}
+
+{{- end }}
+
+{{- end }}

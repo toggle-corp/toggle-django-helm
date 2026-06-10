@@ -1,0 +1,42 @@
+{{- if .Values.worker.enabled }}
+
+{{- $addons := list -}}
+{{- if kindIs "map" .Values.worker.addons -}}
+  {{- range $name, $cfg := .Values.worker.addons -}}
+    {{- $addons = append $addons (merge (dict "name" $name) (default dict $cfg)) -}}
+  {{- end -}}
+{{- else if kindIs "slice" .Values.worker.addons -}}
+  {{- $addons = .Values.worker.addons -}}
+{{- end -}}
+
+{{- range $addon := $addons }}
+{{- if and $addon.enabled $addon.service $addon.service.enabled }}
+
+---
+# Addon Service: {{ $addon.name }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "banjo.fullname" $ }}-worker-{{ $addon.name }}
+  labels:
+    app: {{ include "banjo.fullname" $ }}
+    component: worker-addon
+    addon: {{ $addon.name }}
+    environment: {{ $.Values.environment }}
+    release: {{ $.Release.Name }}
+spec:
+  type: {{ default "ClusterIP" $addon.service.type }}
+  selector:
+    app: {{ include "banjo.fullname" $ }}
+    component: worker-addon
+    addon: {{ $addon.name }}
+  ports:
+    - protocol: TCP
+      port: {{ $addon.service.port }}
+      targetPort: {{ $addon.service.targetPort }}
+
+{{- end }}
+
+{{- end }}
+
+{{- end }}
