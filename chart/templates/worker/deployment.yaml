@@ -8,10 +8,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "django-app.fullname" $ }}-worker-{{ $queue_name }}
-  {{- with (include "django-app.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
+  name: {{ template "banjo.fullname" $ }}-worker-{{ $queue_name }}
+  {{- with (include "banjo.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
   labels:
-    app: {{ include "django-app.fullname" $ }}
+    app: {{ include "banjo.fullname" $ }}
     component: worker
     queue: {{ $queue_name }}
     environment: {{ $.Values.environment }}
@@ -22,42 +22,42 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      app: {{ include "django-app.fullname" $ }}
+      app: {{ include "banjo.fullname" $ }}
       component: worker
       queue: {{ $queue_name }}
   template:
     metadata:
       annotations:
-        {{- include "django-app.appDefaultAnnotations" $ | nindent 8 }}
+        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
       labels:
-        app: {{ include "django-app.fullname" $ }}
+        app: {{ include "banjo.fullname" $ }}
         component: worker
         queue: {{ $queue_name }}
-        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
+        {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
-      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- with (include "banjo.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
       {{- if $.Values.serviceAccount.create }}
-      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
       containers:
         - name: worker
           command:
             {{- toYaml $.Values.worker.queueCommandPrefix | nindent 12 }}
             {{- toYaml $config.celeryArgs | nindent 12 }}
-          {{- include "django-app.imageConfig"
+          {{- include "banjo.imageConfig"
               (dict "Default" $.Values.image "Override" $.Values.worker.image)
               | nindent 10
           }}
           # TODO: livenessProbe
           resources:
-            {{- include "django-app.resourcesConfig"
+            {{- include "banjo.resourcesConfig"
                 (dict "Default" $.Values.worker.queueDefaultResources "Override" $config.resources)
                 | nindent 12
             }}
           envFrom:
-            {{- include "django-app.envFromTemplate" $ | nindent 12 }}
+            {{- include "banjo.envFromTemplate" $ | nindent 12 }}
           env:
-            {{- include "django-app.envTemplate"
+            {{- include "banjo.envTemplate"
                 (dict "Values" $.Values "Type" "worker" )
                 | nindent 12
             }}
@@ -67,7 +67,7 @@ spec:
               value: {{ tpl $envVal $ | quote }}
             {{- end }}
             {{- end }}
-          {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
+          {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}
 

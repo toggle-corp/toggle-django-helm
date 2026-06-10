@@ -1,9 +1,9 @@
 kind: ConfigMap
 apiVersion: v1
 metadata:
-  name: {{ template "django-app.envConfigMapName" . }}
+  name: {{ template "banjo.envConfigMapName" . }}
   labels:
-    app: {{ include "django-app.fullname" . }}
+    app: {{ include "banjo.fullname" . }}
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
 data:

@@ -4,10 +4,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "django-app.fullname" . }}-celery-flower
-  {{- with (include "django-app.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
+  name: {{ template "banjo.fullname" . }}-celery-flower
+  {{- with (include "banjo.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
   labels:
-    app: {{ include "django-app.fullname" . }}
+    app: {{ include "banjo.fullname" . }}
     component: worker-flower
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
@@ -15,24 +15,24 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ include "django-app.fullname" . }}
+      app: {{ include "banjo.fullname" . }}
       component: worker-flower
   template:
     metadata:
       annotations:
-        {{- include "django-app.appDefaultAnnotations" $ | nindent 8 }}
+        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
       labels:
-        app: {{ include "django-app.fullname" . }}
+        app: {{ include "banjo.fullname" . }}
         component: worker-flower
-        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
+        {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
-      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- with (include "banjo.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
       containers:
         - name: worker
-          {{- include "django-app.imageConfig"
+          {{- include "banjo.imageConfig"
               (dict "Default" $.Values.image "Override" $.Values.worker.flower.image)
               | nindent 10
           }}
@@ -42,13 +42,13 @@ spec:
           resources:
             {{- toYaml .Values.worker.flower.resources | nindent 12 }}
           envFrom:
-            {{- include "django-app.envFromTemplate" $ | nindent 12 }}
+            {{- include "banjo.envFromTemplate" $ | nindent 12 }}
           env:
-            {{- include "django-app.envTemplate"
+            {{- include "banjo.envTemplate"
                 (dict "Values" $.Values "Type" "worker" )
                 | nindent 12
             }}
-          {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
+          {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}
 {{- end }}

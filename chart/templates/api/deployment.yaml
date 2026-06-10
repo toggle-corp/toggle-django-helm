@@ -3,10 +3,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "django-app.fullname" . }}-api
-  {{- with (include "django-app.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
+  name: {{ template "banjo.fullname" . }}-api
+  {{- with (include "banjo.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
   labels:
-    app: {{ include "django-app.fullname" . }}
+    app: {{ include "banjo.fullname" . }}
     component: api
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
@@ -16,24 +16,24 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      app: {{ include "django-app.fullname" . }}
+      app: {{ include "banjo.fullname" . }}
       component: api
   template:
     metadata:
       annotations:
-        {{- include "django-app.appDefaultAnnotations" $ | nindent 8 }}
+        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
       labels:
-        app: {{ include "django-app.fullname" . }}
+        app: {{ include "banjo.fullname" . }}
         component: api
-        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
+        {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
-      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- with (include "banjo.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
       containers:
         - name: api
-          {{- include "django-app.imageConfig"
+          {{- include "banjo.imageConfig"
               (dict "Default" $.Values.image "Override" $.Values.api.image)
               | nindent 10
           }}
@@ -47,12 +47,12 @@ spec:
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           envFrom:
-            {{- include "django-app.envFromTemplate" $ | nindent 12 }}
+            {{- include "banjo.envFromTemplate" $ | nindent 12 }}
           env:
-            {{- include "django-app.envTemplate"
+            {{- include "banjo.envTemplate"
               (dict "Values" $.Values "Type" "web" )
               | nindent 12
           }}
-          {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
+          {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}

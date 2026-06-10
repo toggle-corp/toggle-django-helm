@@ -10,9 +10,9 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   {{- if $hook.preserveHistory }}
-  generateName: {{ template "django-app.fullname" $ }}-{{ $hookName }}-
+  generateName: {{ template "banjo.fullname" $ }}-{{ $hookName }}-
   {{- else }}
-  name: {{ template "django-app.fullname" $ }}-{{ $hookName }}
+  name: {{ template "banjo.fullname" $ }}-{{ $hookName }}
   {{- end }}
   annotations:
     argocd.argoproj.io/hook: {{ $hook.hook }}
@@ -20,20 +20,20 @@ spec:
   template:
     metadata:
       annotations:
-        {{- include "django-app.appDefaultAnnotations" $ | nindent 8 }}
+        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
       labels:
-        app: {{ include "django-app.fullname" $ }}
+        app: {{ include "banjo.fullname" $ }}
         component: argo-hooks
-        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
+        {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
       restartPolicy: "Never"
-      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- with (include "banjo.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
       {{- if $.Values.serviceAccount.create }}
-      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
       containers:
         - name: {{ $hookName }}
-          {{- include "django-app.imageConfig"
+          {{- include "banjo.imageConfig"
               (dict "Default" $.Values.image "Override" $.Values.argoHook.image)
               | nindent 10
           }}
@@ -42,14 +42,14 @@ spec:
           args: {{ toYaml $hook.args | trim | nindent 12 }}
           {{- end }}
           resources:
-            {{- include "django-app.resourcesConfig"
+            {{- include "banjo.resourcesConfig"
                 (dict "Default" $.Values.argoHook.resources "Override" $hook.resources)
                 | nindent 12
             }}
           envFrom:
-            {{- include "django-app.envFromTemplate" $ | nindent 12 }}
+            {{- include "banjo.envFromTemplate" $ | nindent 12 }}
           env:
-            {{- include "django-app.envTemplate"
+            {{- include "banjo.envTemplate"
                 (dict "Values" $.Values "Type" "hook" )
                 | nindent 12
             }}
@@ -59,7 +59,7 @@ spec:
               value: {{ tpl $envVal $ | quote }}
             {{- end }}
             {{- end }}
-          {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
+          {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}
 

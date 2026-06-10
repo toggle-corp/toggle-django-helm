@@ -2,24 +2,6 @@ apiVersion: v2
 name: banjo-helm
 description: "Helm Chart to deploy the Django application"
 type: application
-version: 0.3.0  # managed by release.sh
+version: 0.4.0-dev1  # managed by release.sh
 sources:
   - https://github.com/toggle-corp/charts
-
-dependencies:
-  - name: rabbitmq
-    version: 15.4.2
-    repository: https://charts.bitnami.com/bitnami
-    condition: rabbitmq.enabled
-  - name: redis
-    version: 20.6.3
-    repository: https://charts.bitnami.com/bitnami
-    condition: redis.enabled
-  - name: postgresql
-    version: 16.4.5
-    condition: postgresql.enabled
-    repository: https://charts.bitnami.com/bitnami
-  - name: minio
-    version: 14.10.5
-    condition: minio.enabled
-    repository: https://charts.bitnami.com/bitnami
