@@ -1,8 +1,18 @@
 {{- if .Values.cronjobs.enabled }}
 
-{{- range $jobName, $job := .Values.cronjobs.jobs }}
+{{- $defaults := default dict .Values.cronjobs.defaults -}}
+{{- $jobs := list -}}
+{{- if kindIs "map" .Values.cronjobs.jobs -}}
+  {{- range $name, $cfg := .Values.cronjobs.jobs -}}
+    {{- $jobs = append $jobs (merge (dict "name" $name) (default dict $cfg)) -}}
+  {{- end -}}
+{{- else if kindIs "slice" .Values.cronjobs.jobs -}}
+  {{- $jobs = .Values.cronjobs.jobs -}}
+{{- end -}}
 
+{{- range $job := $jobs }}
 {{- if $job.enabled }}
+{{- $jobName := $job.name }}
 
 ---
 # Job: {{ $jobName }}
@@ -22,15 +32,23 @@ spec:
   timeZone: {{ $job.timeZone | quote }}
   {{- end }}
   concurrencyPolicy: "Forbid"
+  successfulJobsHistoryLimit: {{ default $defaults.successfulJobsHistoryLimit $job.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ default $defaults.failedJobsHistoryLimit $job.failedJobsHistoryLimit }}
   jobTemplate:
     spec:
       activeDeadlineSeconds: {{ default 7200 $job.timeLimit }}  # 2 hours default
       template:
         metadata:
-          {{- with $.Values.podAnnotations }}
           annotations:
+            {{- with $.Values.podAnnotations }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- end }}
+            {{- with $defaults.annotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with $job.annotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           labels:
             app: {{ include "banjo.fullname" $ }}
             component: cronjob
@@ -46,12 +64,12 @@ spec:
               command:
                 {{- toYaml $job.command | nindent 16 }}
               {{- include "banjo.imageConfig"
-                  (dict "Default" $.Values.image "Override" $.Values.cronjobs.image)
+                  (dict "Default" $.Values.image "Override" $defaults.image)
                   | nindent 14
               }}
               resources:
                 {{- include "banjo.resourcesConfig"
-                    (dict "Default" $.Values.cronjobs.defaultResources "Override" $job.resources)
+                    (dict "Default" $defaults.resources "Override" $job.resources)
                     | nindent 16
                 }}
               envFrom:
@@ -59,6 +77,10 @@ spec:
               env:
                 {{- include "banjo.envTemplate"
                     (dict "Values" $.Values "Type" "cronjob" )
+                    | nindent 16
+                }}
+                {{- include "banjo.extraEnvBlock"
+                    (dict "Default" $defaults "Override" $job "Context" $)
                     | nindent 16
                 }}
               {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 14 }}{{- end }}

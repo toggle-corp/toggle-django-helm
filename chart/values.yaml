@@ -133,24 +133,35 @@ worker:
 
 cronjobs:
   enabled: true
-  image: {}
-    # name: CRONJOB-SET-BY-CICD-IMAGE
-    # tag: CRONJOB-SET-BY-CICD-TAG
-    # imagePullPolicy: IfNotPresent
-    # imagePullSecrets:
-  defaultResources:
-    requests:
-      cpu: "1"
-      memory: 1Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  # NOTE: Application level configuration
+  defaults:
+    image: {}
+      # name: CRONJOB-SET-BY-CICD-IMAGE
+      # tag: CRONJOB-SET-BY-CICD-TAG
+      # imagePullPolicy: IfNotPresent
+      # imagePullSecrets:
+    extraEnv: {}
+    annotations: {}
+    # Default k8s CronJob keeps 3 successful + 1 failed. Tighten by default.
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 1
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        memory: "512Mi"
+  # NOTE: Application level configuration.
+  # Set as a dict to merge with chart defaults via -f overlay; set as an array to reset.
   jobs: {}
-    # "dummy":
+    # dummy:
     #   schedule: "0 0 * * *"
     #   timeZone: "Asia/Kathmandu"
     #   enabled: false
+    #   extraEnv: {}
+    #   annotations: {}
+    #   # Per-job overrides — fall back to cronjobs.defaults.* when unset.
+    #   successfulJobsHistoryLimit: 1
+    #   failedJobsHistoryLimit: 1
     #   command: ["./manage.py", "run-dummy-command"]
 
 # Not required if root image are set

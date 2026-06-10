@@ -94,16 +94,17 @@ argoHook:
 
 cronjobs:
   enabled: true
-  image:
-    name: ghcr.io/example/cronjob
-    tag: v1.cronjob
-  defaultResources:
-    requests:
-      cpu: "1"
-      memory: 1Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
+  defaults:
+    image:
+      name: ghcr.io/example/cronjob
+      tag: v1.cronjob
+    resources:
+      requests:
+        cpu: "1"
+        memory: 1Gi
+      limits:
+        cpu: "1"
+        memory: 2Gi
   # NOTE: Application level configuration
   jobs:
     dummy-01:
