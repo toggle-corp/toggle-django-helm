@@ -164,31 +164,54 @@ cronjobs:
     #   failedJobsHistoryLimit: 1
     #   command: ["./manage.py", "run-dummy-command"]
 
-# Not required if root image are set
-argoHook:
+# Hook Jobs (ArgoCD or Helm). Annotations are passed through verbatim;
+# consumer writes either argocd.argoproj.io/* (default) or helm.sh/* — same template.
+hooks:
   enabled: true
-  image: {}
-    # name: WORKER-SET-BY-CICD-IMAGE
-    # tag: WORKER-SET-BY-CICD-TAG
-    # imagePullPolicy: IfNotPresent
-    # imagePullSecrets:
-  resources:
-    requests:
-      cpu: "0.1"
-      memory: 1Gi
-    limits:
-      cpu: "4"
-      memory: 2Gi
-  hooks:
-    # NOTE: Make sure keys are lowercase
+  defaults:
+    # Not required if root image are set
+    image: {}
+      # name: HOOK-SET-BY-CICD-IMAGE
+      # tag: HOOK-SET-BY-CICD-TAG
+      # imagePullPolicy: IfNotPresent
+      # imagePullSecrets:
+    extraEnv: {}
+    annotations: {}
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        memory: "512Mi"
+  # Set as a dict to merge with chart defaults via -f overlay; set as an array to reset.
+  jobs:
+    # NOTE: Make sure keys are lowercase.
+    wait-for-resources:
+      enabled: false  # opt-in; requires https://github.com/toggle-corp/banjo-utils
+      annotations:
+        argocd.argoproj.io/hook: "PostSync"
+        argocd.argoproj.io/sync-wave: "10"
+        argocd.argoproj.io/hook-delete-policy: HookSucceeded
+      command: ["./manage.py", "wait-for-resources"]
     db-migrate:
       enabled: true
-      hook: PostSync
-      preserveHistory: true
+      # useGenerateName: true keeps prior migration history (each sync = unique name).
+      # NOTE: do NOT add argocd.argoproj.io/hook-delete-policy with useGenerateName —
+      # BeforeHookCreation matches by name and is inert here (ArgoCD docs).
+      # Cleanup is handled k8s-native via ttlSecondsAfterFinished below.
+      useGenerateName: true
+      activeDeadlineSeconds: 3600
+      ttlSecondsAfterFinished: 604800  # 7 days
+      annotations:
+        argocd.argoproj.io/hook: "PostSync"
+        argocd.argoproj.io/sync-wave: "20"
       command: ["./manage.py", "migrate"]
     collect-static:
       enabled: true
-      hook: PostSync
+      annotations:
+        argocd.argoproj.io/hook: "PostSync"
+        argocd.argoproj.io/sync-wave: "20"
+        argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
       command: ["./manage.py", "collectstatic", "--noinput"]
 
 extraConfigMapName: ""  # User provided name

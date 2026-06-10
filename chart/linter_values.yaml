@@ -48,13 +48,15 @@ worker:
         requests:
           cpu: "0.1"
 
-argoHook:
+hooks:
   enabled: true
-  hooks:
+  jobs:
     my-custom-command:
       enabled: true
-      hook: PostSync
-      preserveHistory: true
+      useGenerateName: true
+      annotations:
+        argocd.argoproj.io/hook: "PostSync"
+        argocd.argoproj.io/sync-wave: "30"
       command: ["/bin/bash", "-c"]
       args:
         - "date --iso-8601 && ls"

@@ -1,0 +1,94 @@
+{{- if .Values.hooks.enabled }}
+
+{{- $defaults := default dict .Values.hooks.defaults -}}
+{{- $jobs := list -}}
+{{- if kindIs "map" .Values.hooks.jobs -}}
+  {{- range $name, $cfg := .Values.hooks.jobs -}}
+    {{- $jobs = append $jobs (merge (dict "name" $name) (default dict $cfg)) -}}
+  {{- end -}}
+{{- else if kindIs "slice" .Values.hooks.jobs -}}
+  {{- $jobs = .Values.hooks.jobs -}}
+{{- end -}}
+
+{{- range $job := $jobs }}
+{{- if $job.enabled }}
+{{- $jobName := $job.name }}
+
+---
+# Hook: {{ $jobName }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  {{- if $job.useGenerateName }}
+  generateName: {{ template "banjo.fullname" $ }}-{{ $jobName }}-
+  {{- else }}
+  name: {{ template "banjo.fullname" $ }}-{{ $jobName }}
+  {{- end }}
+  {{- with $job.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    app: {{ include "banjo.fullname" $ }}
+    component: hook
+    hookName: {{ $jobName }}
+    environment: {{ $.Values.environment }}
+    release: {{ $.Release.Name }}
+spec:
+  {{- with $job.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with $job.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
+  template:
+    metadata:
+      annotations:
+        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
+        {{- with $defaults.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        app: {{ include "banjo.fullname" $ }}
+        component: hook
+        hookName: {{ $jobName }}
+        {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
+    spec:
+      restartPolicy: "Never"
+      {{- with (include "banjo.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- if $.Values.serviceAccount.create }}
+      serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
+      {{- end }}
+      containers:
+        - name: {{ $jobName }}
+          {{- include "banjo.imageConfig"
+              (dict "Default" $.Values.image "Override" $defaults.image)
+              | nindent 10
+          }}
+          command: {{ toYaml $job.command | trim | nindent 12 }}
+          {{- with $job.args }}
+          args: {{ toYaml . | trim | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- include "banjo.resourcesConfig"
+                (dict "Default" $defaults.resources "Override" $job.resources)
+                | nindent 12
+            }}
+          envFrom:
+            {{- include "banjo.envFromTemplate" $ | nindent 12 }}
+          env:
+            {{- include "banjo.envTemplate"
+                (dict "Values" $.Values "Type" "hook" )
+                | nindent 12
+            }}
+            {{- include "banjo.extraEnvBlock"
+                (dict "Default" $defaults "Override" $job "Context" $)
+                | nindent 12
+            }}
+          {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
+
+{{- end }}
+
+{{- end }}
+
+{{- end }}

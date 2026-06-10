@@ -1,0 +1,216 @@
+suite: Hook Job tests
+templates:
+  - templates/hooks/job.yaml
+  - templates/config/secret.yaml
+  - templates/config/configmap.yaml
+tests:
+  - it: should render db-migrate and collect-static under default values (wait-for-resources opt-in)
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: db-migrate ships with generateName, ttlSecondsAfterFinished=604800, activeDeadlineSeconds=3600
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          db-migrate:
+            enabled: true
+          collect-static:
+            enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Job
+      - isNotEmpty:
+          path: metadata.generateName
+      - notExists:
+          path: metadata.name
+      - equal:
+          path: spec.ttlSecondsAfterFinished
+          value: 604800
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 3600
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: PostSync
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "20"
+      # REGRESSION GUARD: BeforeHookCreation is inert with generateName.
+      # ArgoCD docs: use BeforeHookCreation OR generateName, not both.
+      - notExists:
+          path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
+
+  - it: collect-static ships with static name, sync-wave 20, hook-delete-policy BeforeHookCreation
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isNotEmpty:
+          path: metadata.name
+      - notExists:
+          path: metadata.generateName
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "20"
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
+          value: BeforeHookCreation
+
+  - it: wait-for-resources is disabled by default, enables on flag
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          wait-for-resources:
+            enabled: true
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "10"
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
+          value: HookSucceeded
+
+  - it: should pass arbitrary annotations verbatim (works for both Argo and Helm hook styles)
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: false
+          custom:
+            enabled: true
+            command: ["./run"]
+            annotations:
+              helm.sh/hook: post-install,post-upgrade
+              helm.sh/hook-weight: "5"
+              custom.example/key: my-value
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-install,post-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "5"
+      - equal:
+          path: metadata.annotations["custom.example/key"]
+          value: my-value
+
+  - it: should render equivalent hook from array form
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          - name: array-form-hook
+            enabled: true
+            command: ["./array-form"]
+            annotations:
+              argocd.argoproj.io/hook: PostSync
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: PostSync
+
+  - it: should set args when job.args provided
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: false
+          custom:
+            enabled: true
+            command: ["/bin/bash", "-c"]
+            args: ["date --iso-8601"]
+            annotations:
+              argocd.argoproj.io/hook: PostSync
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["date --iso-8601"]
+
+  - it: should not render when hooks.enabled is false
+    template: templates/hooks/job.yaml
+    set:
+      hooks:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should merge hooks.defaults.extraEnv with per-job extraEnv
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        defaults:
+          extraEnv:
+            SHARED: "from-defaults"
+        jobs:
+          db-migrate:
+            enabled: true
+            extraEnv:
+              JOB_KEY: "from-job"
+          collect-static:
+            enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARED
+            value: "from-defaults"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: JOB_KEY
+            value: "from-job"
