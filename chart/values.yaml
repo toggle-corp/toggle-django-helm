@@ -28,20 +28,29 @@ ingress:
 api:
   # Not required if root image are set
   image: {}
-    # name: WORKER-SET-BY-CICD-IMAGE
-    # tag: WORKER-SET-BY-CICD-TAG
+    # name: API-SET-BY-CICD-IMAGE
+    # tag: API-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
     # imagePullSecrets:
   enabled: true
   containerPort: 80
-  command: ["/code/deploy/run_prod.sh"]
+  # Set to your application's entrypoint; empty by default to keep the chart
+  # un-opinionated about Toggle Corp's deploy/run_prod.sh convention.
+  command: []
+  # Per-component annotations merged into Deployment.metadata.annotations.
+  annotations: {}
+  # Per-component inline env. tpl-evaluated. Layered on top of the global
+  # env: ConfigMap (envFrom) — item entries override global on key conflict.
+  extraEnv: {}
+  # No replicaCount default — KEDA owns scaling. Set api.replicaCount: N for
+  # a static count or temporary manual bumps.
   resources:
     requests:
-      cpu: "2"
-      memory: 0.5Gi
+      cpu: "100m"
+      memory: "256Mi"
     limits:
-      cpu: "2"
-      memory: 1Gi
+      # No CPU limit — CFS throttling hurts p99 latency without preventing harm.
+      memory: "512Mi"
 
 worker:
   # Not required if root image are set

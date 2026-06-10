@@ -96,3 +96,89 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: should ship resource defaults with memory limit but no CPU limit
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+    asserts:
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.requests.memory
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.limits.memory
+      - notExists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+
+  - it: should omit command field when api.command is empty (default)
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        command: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].command
+
+  - it: should merge api.annotations onto pod template metadata
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        annotations:
+          custom.annotation/key: "custom-value"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["custom.annotation/key"]
+          value: "custom-value"
+
+  - it: should render api.extraEnv as inline pod env vars
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        extraEnv:
+          LOG_LEVEL: DEBUG
+          REGION: us-east-1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LOG_LEVEL
+            value: "DEBUG"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REGION
+            value: "us-east-1"
+
+  - it: should tpl-evaluate api.extraEnv values
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1.2.3
+      api:
+        enabled: true
+        extraEnv:
+          APP_VERSION: "{{ .Values.image.tag }}"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: APP_VERSION
+            value: "v1.2.3"

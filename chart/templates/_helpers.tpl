@@ -142,6 +142,21 @@ Generate env configs for app types
 {{- end }}
 
 {{/*
+Merge per-component extraEnv maps (defaults + override) and render as a k8s env array.
+Override wins per key. Values are tpl-evaluated against the root context.
+Usage: include "banjo.extraEnvBlock" (dict "Default" $defaultsBlock "Override" $itemBlock "Context" $)
+*/}}
+{{- define "banjo.extraEnvBlock" -}}
+{{- $default := default dict (default dict .Default).extraEnv -}}
+{{- $override := default dict (default dict .Override).extraEnv -}}
+{{- $merged := merge (dict) $override $default -}}
+{{- range $k, $v := $merged }}
+- name: {{ $k }}
+  value: {{ tpl (toString $v) $.Context | quote }}
+{{- end }}
+{{- end }}
+
+{{/*
 Generate default annotations for app deployments
 */}}
 {{- define "banjo.appDefaultDeploymentAnnotations" -}}

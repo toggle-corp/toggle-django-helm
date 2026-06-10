@@ -23,6 +23,9 @@ spec:
     metadata:
       annotations:
         {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
+        {{- with .Values.api.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         app: {{ include "banjo.fullname" . }}
         component: api
@@ -38,8 +41,10 @@ spec:
               (dict "Default" $.Values.image "Override" $.Values.api.image)
               | nindent 10
           }}
+          {{- with .Values.api.command }}
           command:
-            {{- toYaml .Values.api.command | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.api.containerPort }}
@@ -52,6 +57,10 @@ spec:
           env:
             {{- include "banjo.envTemplate"
               (dict "Values" $.Values "Type" "web" )
+              | nindent 12
+          }}
+            {{- include "banjo.extraEnvBlock"
+              (dict "Default" (dict) "Override" .Values.api "Context" $)
               | nindent 12
           }}
           {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
