@@ -426,6 +426,46 @@ Kubernetes then routes the Ingress to the cluster's **default IngressClass** (th
 
 ---
 
+### 7. API graceful shutdown (preStop sleep + computed terminationGracePeriodSeconds)
+
+The 0.4.0 api Deployment ships with a `lifecycle.preStop.sleep` hook by default to close the kube-proxy endpoint-propagation race. Without it, new requests can land on a pod *after* uvicorn has stopped accepting them, because kube-proxy hasn't finished removing the pod from Service endpoints yet. The sleep runs before SIGTERM, buying kube-proxy time to converge. See [learnk8s.io/graceful-shutdown](https://learnk8s.io/graceful-shutdown).
+
+Rendered shape (default):
+
+```yaml
+spec:
+  template:
+    spec:
+      terminationGracePeriodSeconds: 38     # 8s preStop + 30s SIGTERM drain
+      containers:
+        - name: api
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 8
+```
+
+**Knobs:**
+
+```yaml
+api:
+  lifecycle:
+    preStopSleepSeconds: 8                  # default; set 0 to disable hook entirely
+  # terminationGracePeriodSeconds: 60       # optional explicit override; wins over the computed default
+```
+
+**Semantics:**
+- `preStopSleepSeconds: 0` → `lifecycle:` is **not** rendered, and `terminationGracePeriodSeconds` is **not** rendered (K8s default 30 applies).
+- Otherwise, `spec.terminationGracePeriodSeconds` is computed as `preStopSleepSeconds + 30` (the 30s drain budget for uvicorn) unless `api.terminationGracePeriodSeconds` is set, in which case the explicit value wins.
+
+**Chart requirement:** uses K8s 1.30+ native `lifecycle.sleep` action. `Chart.yaml` now pins `kubeVersion: ">= 1.30.0-0"`, so `helm install`/`helm template` will refuse on older clusters.
+
+**Scope:** API only. `worker`, `worker.addons`, and `cronjobs` are not behind a Service receiving end-user traffic, so the kube-proxy race doesn't apply — no preStop hook is rendered for them.
+
+**Migration:** none required for typical consumers. If you have an api startup that needs more than 30s of post-SIGTERM drain (long-running websocket streams, slow request handlers), set `api.terminationGracePeriodSeconds` explicitly. If you want the old "instant SIGTERM, no grace ceiling" behavior, set `api.lifecycle.preStopSleepSeconds: 0`.
+
+---
+
 ## Verification protocol
 
 Run this **before and after** the migration to prove the diff matches the expected changes.
@@ -453,6 +493,8 @@ diff /tmp/before.yaml /tmp/after.yaml | less
 - **Absent**: `spec.replicas:` on api and worker-queue Deployments (unless replicaCount was explicitly kept).
 - **Absent**: `resources.limits.cpu` on Deployments using chart defaults (unless explicitly restored).
 - **Absent**: `spec.ingressClassName` on the Ingress, if `api.ingress.className` was dropped to rely on the cluster default.
+- `spec.template.spec.containers[0].lifecycle.preStop.sleep.seconds: 8` on the api Deployment (unless `api.lifecycle.preStopSleepSeconds` was overridden).
+- `spec.template.spec.terminationGracePeriodSeconds: 38` on the api Deployment (unless `api.terminationGracePeriodSeconds` was set explicitly, or preStop was disabled).
 - Image refs and labels using `banjo-helm-*` naming (was `django-app-*`).
 - The hook Job's `metadata.annotations` block now contains everything from `hooks.jobs.<X>.annotations` verbatim.
 

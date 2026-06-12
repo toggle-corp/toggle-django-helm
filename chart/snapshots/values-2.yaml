@@ -108,6 +108,7 @@ spec:
               secretProviderClass: my-secret-provider
           name: my-stuff
       serviceAccountName: release-name-banjo-helm
+      terminationGracePeriodSeconds: 38
       containers:
         - name: api
           image: "ghcr.io/example/example:v1.0.1"
@@ -143,6 +144,10 @@ spec:
                   key: special.how
                   name: special-config
             
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 8
           volumeMounts:
             - name: release-name-banjo-helm-secret
               mountPath: /mnt/secrets-store

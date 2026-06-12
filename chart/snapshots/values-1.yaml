@@ -121,6 +121,7 @@ spec:
         component: api
     spec:
       serviceAccountName: secret-account
+      terminationGracePeriodSeconds: 38
       containers:
         - name: api
           image: "ghcr.io/example/example:v1.0.1"
@@ -144,6 +145,11 @@ spec:
           env:
             - name: DJANGO_APP_TYPE
               value: "web"
+            
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 8
 ---
 # Source: banjo-helm/templates/worker-addons/deployment.yaml
 # Addon: beat

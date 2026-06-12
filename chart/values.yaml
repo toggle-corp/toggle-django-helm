@@ -44,6 +44,19 @@ api:
   extraEnv: {}
   # No replicaCount default — KEDA owns scaling. Set api.replicaCount: N for
   # a static count or temporary manual bumps.
+  lifecycle:
+    # preStop sleep closes the kube-proxy endpoint-propagation race: SIGTERM
+    # and endpoint removal happen concurrently, so a pod can still receive
+    # new requests after uvicorn stops accepting them. Sleeping before
+    # SIGTERM gives kube-proxy time to drop the pod from Service endpoints.
+    # See: https://learnk8s.io/graceful-shutdown
+    # Set to 0 to disable the hook entirely.
+    # Uses K8s 1.30+ native lifecycle.sleep action (kubeVersion-pinned).
+    preStopSleepSeconds: 8
+  # Effective spec.terminationGracePeriodSeconds = preStopSleepSeconds + 30s
+  # drain budget, unless this is set explicitly (then this value wins).
+  # Leave unset to take the computed default.
+  # terminationGracePeriodSeconds:
   resources:
     requests:
       cpu: "100m"
