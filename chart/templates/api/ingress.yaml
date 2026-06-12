@@ -1,4 +1,4 @@
-{{- if .Values.ingress.enabled }}
+{{- if .Values.api.ingress.enabled }}
 
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -9,16 +9,16 @@ metadata:
     component: api
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
-    {{- with .Values.ingress.labels }}
+    {{- with .Values.api.ingress.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- with .Values.ingress.annotations }}
+  {{- with .Values.api.ingress.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  ingressClassName: {{ required "ingress.className" .Values.ingress.className | quote }}
+  ingressClassName: {{ required "api.ingress.className" .Values.api.ingress.className | quote }}
   rules:
-    - host: {{ required "ingress.host" .Values.ingress.host | quote }}
+    - host: {{ required "api.ingress.host" .Values.api.ingress.host | quote }}
       http:
         paths:
           - path: /
@@ -29,11 +29,11 @@ spec:
                 port:
                   number: 80
 
-  {{- if .Values.ingress.tls.enabled }}
+  {{- if .Values.api.ingress.tls.enabled }}
   tls:
-    - secretName: {{ required "ingress.tls.secretName" .Values.ingress.tls.secretName }}
+    - secretName: {{ required "api.ingress.tls.secretName" .Values.api.ingress.tls.secretName }}
       hosts:
-        - {{ .Values.ingress.host | quote }}
+        - {{ .Values.api.ingress.host | quote }}
   {{- end }}
 
 {{- end }}

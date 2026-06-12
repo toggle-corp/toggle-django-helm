@@ -17,14 +17,6 @@ image: {}
   # imagePullPolicy: IfNotPresent
   # imagePullSecrets:
 
-ingress:
-  enabled: false
-  host:
-  className:
-  tls:
-    enabled: false
-    secretName:
-
 api:
   # Not required if root image are set
   image: {}
@@ -34,6 +26,13 @@ api:
     # imagePullSecrets:
   enabled: true
   containerPort: 80
+  ingress:
+    enabled: false
+    host:
+    className:
+    tls:
+      enabled: false
+      secretName:
   # Set to your application's entrypoint; empty by default to keep the chart
   # un-opinionated about Toggle Corp's deploy/run_prod.sh convention.
   command: []

@@ -5,10 +5,11 @@ tests:
   - it: should render Ingress with host and ingressClassName
     set:
       environment: TEST
-      ingress:
-        enabled: true
-        host: myapp.example.com
-        className: nginx
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          className: nginx
     asserts:
       - isKind:
           of: Ingress
@@ -37,13 +38,14 @@ tests:
 
   - it: should render TLS block when ingress.tls.enabled is true
     set:
-      ingress:
-        enabled: true
-        host: myapp.example.com
-        className: nginx
-        tls:
+      api:
+        ingress:
           enabled: true
-          secretName: my-tls-secret
+          host: myapp.example.com
+          className: nginx
+          tls:
+            enabled: true
+            secretName: my-tls-secret
     asserts:
       - equal:
           path: spec.tls[0].secretName
@@ -54,14 +56,15 @@ tests:
 
   - it: should propagate ingress annotations and labels
     set:
-      ingress:
-        enabled: true
-        host: myapp.example.com
-        className: nginx
-        annotations:
-          nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-        labels:
-          team: platform
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+          labels:
+            team: platform
     asserts:
       - equal:
           path: metadata.annotations["nginx.ingress.kubernetes.io/proxy-body-size"]
@@ -72,8 +75,9 @@ tests:
 
   - it: should not render when ingress.enabled is false
     set:
-      ingress:
-        enabled: false
+      api:
+        ingress:
+          enabled: false
     asserts:
       - hasDocuments:
           count: 0

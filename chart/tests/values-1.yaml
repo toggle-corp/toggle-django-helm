@@ -4,15 +4,14 @@ image:
   name: ghcr.io/example/example
   tag: v1.0.1
 
-ingress:
-  enabled: true
-  host: myapp.example.com
-  className: nginx
-  tls:
-    enabled: true
-    secretName: my-secret
-
 api:
+  ingress:
+    enabled: true
+    host: myapp.example.com
+    className: nginx
+    tls:
+      enabled: true
+      secretName: my-secret
   resources:
     requests:
       cpu: "0.2"

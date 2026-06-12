@@ -27,12 +27,11 @@ image:
   imagePullSecrets:
     - name: regcred
 
-ingress:
-  enabled: true
-  host: myapp.example.com
-  className: nginx
-
 api:
+  ingress:
+    enabled: true
+    host: myapp.example.com
+    className: nginx
   replicaCount: 0
   resources:
     requests:

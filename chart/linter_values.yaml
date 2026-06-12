@@ -5,12 +5,11 @@ image:
   tag: v1.0.1
   imagePullPolicy: IfNotPresent
 
-ingress:
-  enabled: true
-  host: myapp.example.com
-  className: nginx
-
 api:
+  ingress:
+    enabled: true
+    host: myapp.example.com
+    className: nginx
   resources:
     requests:
       cpu: "0.2"
