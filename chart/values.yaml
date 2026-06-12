@@ -29,6 +29,7 @@ api:
   ingress:
     enabled: false
     host:
+    # Optional. If unset, the cluster's default IngressClass is used.
     className:
     tls:
       enabled: false

@@ -16,7 +16,9 @@ metadata:
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  ingressClassName: {{ required "api.ingress.className" .Values.api.ingress.className | quote }}
+  {{- with .Values.api.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
   rules:
     - host: {{ required "api.ingress.host" .Values.api.ingress.host | quote }}
       http:

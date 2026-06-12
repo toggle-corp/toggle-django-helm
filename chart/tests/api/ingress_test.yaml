@@ -81,3 +81,27 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: should omit ingressClassName when className is unset
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+    asserts:
+      - notExists:
+          path: spec.ingressClassName
+      - equal:
+          path: spec.rules[0].host
+          value: myapp.example.com
+
+  - it: should omit ingressClassName when className is empty string
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          className: ""
+    asserts:
+      - notExists:
+          path: spec.ingressClassName
