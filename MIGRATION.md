@@ -46,6 +46,8 @@ Every breaking path change in one table. Left → right.
 | `cronjobs.image` | `cronjobs.defaults.image` | Moved into defaults. |
 | `cronjobs.defaultResources` | `cronjobs.defaults.resources` | Moved into defaults. |
 | `cronjobs.jobs.<X>.env` | `cronjobs.jobs.<X>.extraEnv` | Renamed. |
+| `ingress:` (whole block) | `api.ingress:` | Nested under api (its only consumer). Sub-keys unchanged. |
+| `ingress.className` (required) | `api.ingress.className` (optional) | Drop unset to use the cluster's default IngressClass. |
 | _(N/A)_ | `revisionHistoryLimit: 1` (top-level) | New chart-wide default; can override. |
 
 The `django-app.*` → `banjo.*` rename is internal — it does not affect `values.yaml`, only template helpers.
@@ -89,6 +91,43 @@ api:
       # CPU limit dropped by chart convention; restore here if you really want it
       memory: 1Gi
 ```
+
+---
+
+### `ingress:` → `api.ingress:`
+
+**Before (0.3.x):**
+```yaml
+ingress:
+  enabled: true
+  host: myapp.example.com
+  className: nginx          # required — render failed if missing
+  tls:
+    enabled: true
+    secretName: my-tls
+
+api:
+  enabled: true
+  # ...
+```
+
+**After (0.4.0):**
+```yaml
+api:
+  enabled: true
+  # ...
+  ingress:
+    enabled: true
+    host: myapp.example.com
+    # className is now optional — omit to use the cluster's default IngressClass.
+    # If your cluster has a single default IngressClass set, drop this line.
+    className: nginx
+    tls:
+      enabled: true
+      secretName: my-tls
+```
+
+Sub-keys (`enabled`, `host`, `className`, `tls.*`, `annotations`, `labels`) are unchanged — only the parent path moves.
 
 ---
 
@@ -374,6 +413,17 @@ Dict form merges via `-f`; array form replaces wholesale.
 
 The same dict-or-array pattern applies to `worker.queues`, `worker.addons`, `cronjobs.jobs`, and `hooks.jobs`.
 
+### 6. `api.ingress.className` is now optional
+
+In 0.3.x, `ingress.className` was wrapped with Helm's `required` — `helm template` failed loudly when missing. In 0.4.0, the template uses `{{- with .Values.api.ingress.className }}`: if unset (or empty string), `spec.ingressClassName` is omitted from the rendered Ingress entirely.
+
+Kubernetes then routes the Ingress to the cluster's **default IngressClass** (the IngressClass resource annotated `ingressclass.kubernetes.io/is-default-class: "true"`).
+
+**Migration:**
+- If your target clusters have a single default IngressClass set, you can drop `className` from your values.yaml.
+- If they don't, **keep `className` explicit** — otherwise the Ingress will be created without a controller and traffic will silently not route. The chart no longer warns about this; it's a cluster-side contract.
+- `className: ""` is treated the same as unset (both fall into the `with` block's falsy branch).
+
 ---
 
 ## Verification protocol
@@ -402,6 +452,7 @@ diff /tmp/before.yaml /tmp/after.yaml | less
 - **Absent**: `argocd.argoproj.io/hook-delete-policy` annotation on the db-migrate Job (regression guard).
 - **Absent**: `spec.replicas:` on api and worker-queue Deployments (unless replicaCount was explicitly kept).
 - **Absent**: `resources.limits.cpu` on Deployments using chart defaults (unless explicitly restored).
+- **Absent**: `spec.ingressClassName` on the Ingress, if `api.ingress.className` was dropped to rely on the cluster default.
 - Image refs and labels using `banjo-helm-*` naming (was `django-app-*`).
 - The hook Job's `metadata.annotations` block now contains everything from `hooks.jobs.<X>.annotations` verbatim.
 
