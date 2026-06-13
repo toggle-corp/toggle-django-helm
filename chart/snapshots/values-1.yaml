@@ -130,7 +130,6 @@ spec:
             - name: http
               containerPort: 80
               protocol: TCP
-          # TODO: livenessProbe
           resources:
             limits:
               memory: 512Mi

@@ -55,7 +55,20 @@ spec:
             - name: http
               containerPort: {{ .Values.api.containerPort }}
               protocol: TCP
-          # TODO: livenessProbe
+          {{- if .Values.api.probes.enabled }}
+          {{- with .Values.api.probes.liveness }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.probes.readiness }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.probes.startup }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           envFrom:

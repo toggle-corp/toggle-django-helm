@@ -57,6 +57,50 @@ api:
   # drain budget, unless this is set explicitly (then this value wins).
   # Leave unset to take the computed default.
   # terminationGracePeriodSeconds:
+  probes:
+    # Opt-in. Requires the app to expose HTTP health endpoints.
+    # See banjo-utils' HealthCheckMiddleware for the conventional
+    # /healthz/live/ and /healthz/ready/ implementation:
+    # https://github.com/toggle-corp/banjo-utils#health-endpoints
+    #
+    # Passthrough schema: each probe block is rendered verbatim under
+    # the matching k8s Probe field, so any field of corev1.Probe is
+    # configurable here. To turn the whole feature off, set enabled: false.
+    # To disable a single probe, use `--set api.probes.<probe>=null` on the
+    # CLI; Helm deep-merges -f overlays, so writing `startup: {}` or
+    # `startup: null` in a values file does NOT clear the defaults
+    # (helm/helm#9136). Same for switching handler (httpGet -> tcpSocket):
+    # use `--set api.probes.<probe>.httpGet=null` and add the new handler.
+    enabled: false
+    # Liveness — restart on wedge. Conservative: 120s wedge budget
+    # (20s period × 6 failures) tolerates GC pauses without nuking pods.
+    liveness:
+      httpGet:
+        path: /healthz/live/
+        port: http
+      periodSeconds: 20
+      timeoutSeconds: 2
+      failureThreshold: 6
+    # Readiness — pull from Service endpoints on dependency loss.
+    # Aggressive vs liveness: 60s budget (10s × 6). Endpoint flap is cheap.
+    # banjo-utils' /healthz/ready/ is deliberately pod-local (no DB/Redis
+    # probing) to avoid stampeding shared deps on recovery.
+    readiness:
+      httpGet:
+        path: /healthz/ready/
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 2
+      failureThreshold: 6
+    # Startup — long-tail boot grace before liveness arms. 150s budget
+    # (5s × 30) covers cold Django boot. Mirrors readiness path so the
+    # same banjo-utils endpoint serves both (pod-local check by design).
+    startup:
+      httpGet:
+        path: /healthz/ready/
+        port: http
+      periodSeconds: 5
+      failureThreshold: 30
   resources:
     requests:
       cpu: "100m"

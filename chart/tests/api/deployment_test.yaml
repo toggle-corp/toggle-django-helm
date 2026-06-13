@@ -283,6 +283,175 @@ tests:
           path: spec.template.spec.terminationGracePeriodSeconds
           value: 60
 
+  - it: should not render any probe when api.probes.enabled is false (default)
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+
+  - it: should render all three probes with banjo-utils defaults when enabled
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz/live/
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 20
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 6
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthz/ready/
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.failureThreshold
+          value: 6
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /healthz/ready/
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.periodSeconds
+          value: 5
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 30
+
+  - it: should deep-merge a single override onto probe defaults
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          liveness:
+            periodSeconds: 30
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 30
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz/live/
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 6
+
+  - it: should skip a single probe when its block is nulled
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          startup: null
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].livenessProbe
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should deep-merge a custom probe path while keeping port from defaults
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          readiness:
+            httpGet:
+              path: /custom/health/
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /custom/health/
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: http
+
+  # oneOf gotcha: adding a second handler (tcpSocket) without nulling httpGet
+  # leaves BOTH in the rendered manifest because Helm deep-merges maps. The
+  # apiserver will reject this with `Probe.handler: oneOf [HTTPGet, ...]`.
+  # Switching handlers requires `--set api.probes.<probe>.httpGet=null`
+  # (see the next test). This test pins the merge behavior as known.
+  - it: should render both httpGet and tcpSocket when tcpSocket is added without nulling httpGet
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          liveness:
+            tcpSocket:
+              port: http
+    asserts:
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: http
+
+  # Documented workaround for switching probe handler: null the default
+  # httpGet block, then add the new handler. Result is a valid one-of manifest.
+  - it: should drop httpGet when nulled and render tcpSocket alone
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          liveness:
+            httpGet: null
+            tcpSocket:
+              port: http
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: http
+
   - it: should render extraEnvVars when given as dict form (keyed by env-var name)
     template: templates/api/deployment.yaml
     set:
