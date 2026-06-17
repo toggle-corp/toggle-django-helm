@@ -33,6 +33,11 @@ spec:
   {{- if not (eq $config.replicaCount nil) }}
   replicas: {{ $config.replicaCount }}
   {{- end }}
+  {{- $strategy := $config.strategy | default $defaults.strategy -}}
+  {{- with $strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   revisionHistoryLimit: {{ $.Values.revisionHistoryLimit }}
   selector:
     matchLabels:

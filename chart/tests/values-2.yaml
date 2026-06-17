@@ -46,6 +46,8 @@ worker:
       enabled: true
       command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
       replicaCount: 1
+      strategy:
+        type: Recreate
       # Writer + reader agree on the heartbeat path via this env; the RAM
       # emptyDir below backs it, so the probe needs no --heartbeat-file flag.
       extraEnv:

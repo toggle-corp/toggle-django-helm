@@ -522,3 +522,67 @@ tests:
           value: "512Mi"
       - notExists:
           path: spec.template.spec.containers[0].resources.limits.cpu
+
+  - it: should render strategy when set on the queue
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            strategy:
+              type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: should let per-queue strategy override queueDefaults strategy wholesale
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          strategy:
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 1
+              maxUnavailable: 0
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            strategy:
+              type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+      - notExists:
+          path: spec.strategy.rollingUpdate
+
+  - it: should not render strategy when unset
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - notExists:
+          path: spec.strategy

@@ -424,6 +424,70 @@ tests:
       - notExists:
           path: spec.template.spec.containers[0].startupProbe
 
+  - it: should render strategy when set on the addon
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            strategy:
+              type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+
+  - it: should let per-addon strategy override addonDefaults strategy wholesale
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          strategy:
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: 1
+              maxUnavailable: 0
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            strategy:
+              type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy
+          value:
+            type: Recreate
+      - notExists:
+          path: spec.strategy.rollingUpdate
+
+  - it: should not render strategy when unset
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - notExists:
+          path: spec.strategy
+
   - it: should not render when worker.enabled is false
     template: templates/worker-addons/deployment.yaml
     set:

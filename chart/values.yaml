@@ -131,6 +131,10 @@ worker:
     # Pod volumes / container mounts. Dict to merge by name, array to reset.
     volumes: {}
     volumeMounts: {}
+    # Deployment update strategy. Whole-block override (coalesced, NOT merged):
+    # a per-queue strategy replaces this entirely. Singletons (e.g. beat) should
+    # set `{type: Recreate}` to never run two pods during a rollout.
+    strategy: {}
     # Opt-in probes, merged with per-queue probes (per-queue wins per key).
     # Workers have no HTTP server, so use banjo-utils' banjo-celery-probe,
     # which checks a heartbeat file the worker touches each task cycle.
@@ -204,6 +208,10 @@ worker:
     # Pod volumes / container mounts. Dict to merge by name, array to reset.
     volumes: {}
     volumeMounts: {}
+    # Deployment update strategy. Whole-block override (coalesced, NOT merged):
+    # a per-addon strategy replaces this entirely. Singletons (e.g. beat) should
+    # set `{type: Recreate}` to never run two pods during a rollout.
+    strategy: {}
     resources:
       requests:
         cpu: "50m"
@@ -218,6 +226,7 @@ worker:
     #   enabled: false
     #   command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
     #   replicaCount: 1            # NOTE: beat must be singleton
+    #   strategy: {type: Recreate}   # singleton: never run two beats during a rollout
     #   # Beat variant of banjo-celery-probe — see banjo-utils. --max-age must
     #   # exceed beat's persistent-scheduler tick (300s), hence 360.
     #   probes:
