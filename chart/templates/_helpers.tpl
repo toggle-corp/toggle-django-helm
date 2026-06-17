@@ -113,6 +113,31 @@ Generate resources metadata
 {{- end }}
 
 {{/*
+Render livenessProbe/readinessProbe/startupProbe from a merged probes block.
+Merges Default + Override (override wins per key, like banjo.resourcesConfig),
+then — only if merged.enabled is truthy — emits the probe keys from
+merged.liveness / .readiness / .startup, each rendered verbatim (any field of
+corev1.Probe is passthrough). Emits nothing when disabled or no probes set.
+Usage: include "banjo.probesConfig" (dict "Default" $defaults.probes "Override" $item.probes)
+*/}}
+{{- define "banjo.probesConfig" -}}
+{{- $merged := merge (dict) (default dict .Override) (default dict .Default) -}}
+{{- if $merged.enabled -}}
+{{- $out := list -}}
+{{- with $merged.liveness -}}
+{{- $out = append $out (printf "livenessProbe:\n%s" (toYaml . | indent 2)) -}}
+{{- end -}}
+{{- with $merged.readiness -}}
+{{- $out = append $out (printf "readinessProbe:\n%s" (toYaml . | indent 2)) -}}
+{{- end -}}
+{{- with $merged.startup -}}
+{{- $out = append $out (printf "startupProbe:\n%s" (toYaml . | indent 2)) -}}
+{{- end -}}
+{{- join "\n" $out -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Generate env configs for deployments
 */}}
 {{- define "banjo.envFromTemplate" -}}

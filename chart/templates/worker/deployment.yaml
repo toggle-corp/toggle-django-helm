@@ -68,7 +68,7 @@ spec:
               (dict "Default" $.Values.image "Override" $.Values.worker.image)
               | nindent 10
           }}
-          # TODO: livenessProbe
+          {{- with (include "banjo.probesConfig" (dict "Default" $defaults.probes "Override" $config.probes)) -}}{{ . | nindent 10 }}{{- end }}
           resources:
             {{- include "banjo.resourcesConfig"
                 (dict "Default" $defaults.resources "Override" $config.resources)

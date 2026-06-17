@@ -131,6 +131,47 @@ worker:
     # Pod volumes / container mounts. Dict to merge by name, array to reset.
     volumes: {}
     volumeMounts: {}
+    # Opt-in probes, merged with per-queue probes (per-queue wins per key).
+    # Workers have no HTTP server, so use banjo-utils' banjo-celery-probe,
+    # which checks a heartbeat file the worker touches each task cycle.
+    # See https://github.com/toggle-corp/banjo-utils#celery-worker--beat-health
+    #
+    # Passthrough schema: each probe block renders verbatim under the matching
+    # k8s Probe field. To turn the whole feature off, set enabled: false. To
+    # disable a single probe, use `--set worker.queueDefaults.probes.<probe>=null`
+    # on the CLI; Helm deep-merges -f overlays, so writing `startup: {}` or
+    # `startup: null` in a values file does NOT clear the defaults
+    # (helm/helm#9136). Same for switching handler (exec -> tcpSocket): use
+    # `--set worker.queueDefaults.probes.<probe>.exec=null` and add the new one.
+    #
+    # NOTE: the worker (writer, via banjo-utils' setup_worker_heartbeat bootstep)
+    # and the probe (reader) must agree on the heartbeat path. Set it once via
+    # BANJO_CELERY_HEARTBEAT_FILE and the probe inherits it — no --heartbeat-file
+    # flag needed. Back it with a RAM-backed emptyDir so it works under
+    # readOnlyRootFilesystem and writes nothing to disk:
+    # extraEnv:
+    #   BANJO_CELERY_HEARTBEAT_FILE: /var/run/celery/worker_heartbeat
+    # volumes:
+    #   celery-heartbeat: {emptyDir: {medium: Memory, sizeLimit: 1Mi}}
+    # volumeMounts:
+    #   celery-heartbeat: {mountPath: /var/run/celery}
+    # probes:
+    #   enabled: true
+    #   # Liveness — restart on wedge. Conservative: 120s budget
+    #   # (20s period × 6 failures) tolerates long-running tasks / GC pauses.
+    #   liveness:
+    #     exec:
+    #       command: [banjo-celery-probe]   # path inherited from the env above
+    #     periodSeconds: 20
+    #     timeoutSeconds: 5
+    #     failureThreshold: 6
+    #   # Startup — boot grace before liveness arms. 150s budget (5s × 30)
+    #   # covers cold worker boot. Reuses the same heartbeat exec.
+    #   startup:
+    #     exec:
+    #       command: [banjo-celery-probe]
+    #     periodSeconds: 5
+    #     failureThreshold: 30
     resources:
       requests:
         cpu: "100m"
@@ -177,6 +218,19 @@ worker:
     #   enabled: false
     #   command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
     #   replicaCount: 1            # NOTE: beat must be singleton
+    #   # Beat variant of banjo-celery-probe — see banjo-utils. --max-age must
+    #   # exceed beat's persistent-scheduler tick (300s), hence 360.
+    #   probes:
+    #     enabled: true
+    #     liveness:
+    #       # Back the path via extraEnv BANJO_CELERY_HEARTBEAT_FILE + a
+    #       # celery-heartbeat emptyDir mount (as in queueDefaults above); beat
+    #       # writes a *different* file, e.g. /var/run/celery/beat_heartbeat.
+    #       exec:
+    #         command: [banjo-celery-probe, --max-age, "360"]
+    #       periodSeconds: 60
+    #       timeoutSeconds: 5
+    #       failureThreshold: 3
     #
     # flower:
     #   enabled: false

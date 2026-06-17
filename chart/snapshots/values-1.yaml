@@ -316,7 +316,6 @@ spec:
             - celery
           image: "ghcr.io/example/example:v1.0.1"
           imagePullPolicy: IfNotPresent
-          # TODO: livenessProbe
           resources:
             limits:
               memory: 512Mi

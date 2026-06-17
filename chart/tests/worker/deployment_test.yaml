@@ -370,6 +370,129 @@ tests:
       - notExists:
           path: spec.template.spec.containers[0].volumeMounts
 
+  - it: should render probes from queueDefaults.probes when enabled
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          probes:
+            enabled: true
+            liveness:
+              exec:
+                command:
+                  - banjo-celery-probe
+                  - --heartbeat-file
+                  - /tmp/celery_worker_heartbeat
+              periodSeconds: 20
+              failureThreshold: 6
+            startup:
+              exec:
+                command:
+                  - banjo-celery-probe
+                  - --heartbeat-file
+                  - /tmp/celery_worker_heartbeat
+              periodSeconds: 5
+              failureThreshold: 30
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.exec.command
+          value:
+            - banjo-celery-probe
+            - --heartbeat-file
+            - /tmp/celery_worker_heartbeat
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 6
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.exec.command
+          value:
+            - banjo-celery-probe
+            - --heartbeat-file
+            - /tmp/celery_worker_heartbeat
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should merge queueDefaults.probes with per-queue probes (queue wins per key)
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          probes:
+            enabled: true
+            liveness:
+              exec:
+                command: ["banjo-celery-probe"]
+              periodSeconds: 20
+              failureThreshold: 6
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            probes:
+              liveness:
+                failureThreshold: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 3
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 20
+
+  - it: should not render probes when probes.enabled is false
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          probes:
+            enabled: false
+            liveness:
+              exec:
+                command: ["banjo-celery-probe"]
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+
+  - it: should not render probes when probes unset
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+
   - it: should apply queueDefaults.resources with per-queue override (no CPU limit by default)
     template: templates/worker/deployment.yaml
     set:

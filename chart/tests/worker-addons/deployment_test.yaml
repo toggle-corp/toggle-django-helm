@@ -316,6 +316,114 @@ tests:
       - notExists:
           path: spec.template.spec.containers[0].volumeMounts
 
+  - it: should render probes from per-addon probes when enabled
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            probes:
+              enabled: true
+              liveness:
+                exec:
+                  command:
+                    - banjo-celery-probe
+                    - --heartbeat-file
+                    - /tmp/celery_beat_heartbeat
+                    - --max-age
+                    - "360"
+                failureThreshold: 3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.exec.command
+          value:
+            - banjo-celery-probe
+            - --heartbeat-file
+            - /tmp/celery_beat_heartbeat
+            - --max-age
+            - "360"
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 3
+
+  - it: should merge addonDefaults.probes with per-addon probes (addon wins per key)
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          probes:
+            enabled: true
+            liveness:
+              exec:
+                command: ["banjo-celery-probe"]
+              periodSeconds: 60
+              failureThreshold: 3
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            probes:
+              liveness:
+                failureThreshold: 5
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 5
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 60
+
+  - it: should not render probes when probes.enabled is false
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            probes:
+              enabled: false
+              liveness:
+                exec:
+                  command: ["banjo-celery-probe"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+
+  - it: should not render probes when probes unset
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+
   - it: should not render when worker.enabled is false
     template: templates/worker-addons/deployment.yaml
     set:

@@ -222,6 +222,14 @@ spec:
             - beat
             - -l
             - INFO
+          livenessProbe:
+            exec:
+              command:
+              - banjo-celery-probe
+              - --max-age
+              - "360"
+            failureThreshold: 3
+            periodSeconds: 60
           resources:
             limits:
               memory: 256Mi
@@ -246,6 +254,8 @@ spec:
                   key: special.how
                   name: special-config
             
+            - name: BANJO_CELERY_HEARTBEAT_FILE
+              value: "/var/run/celery/beat_heartbeat"
           volumeMounts:
             - name: release-name-banjo-helm-secret
               mountPath: /mnt/secrets-store
@@ -422,7 +432,19 @@ spec:
           imagePullPolicy: IfNotPresent
           imagePullSecrets:
             - name: regcred
-          # TODO: livenessProbe
+          livenessProbe:
+            exec:
+              command:
+              - banjo-celery-probe
+            failureThreshold: 6
+            periodSeconds: 20
+            timeoutSeconds: 5
+          startupProbe:
+            exec:
+              command:
+              - banjo-celery-probe
+            failureThreshold: 30
+            periodSeconds: 5
           resources:
             limits:
               memory: 512Mi
@@ -447,6 +469,8 @@ spec:
                   key: special.how
                   name: special-config
             
+            - name: BANJO_CELERY_HEARTBEAT_FILE
+              value: "/var/run/celery/worker_heartbeat"
             - name: SHARED_QUEUE_KEY
               value: "SHARED_VALUE"
             - name: USER_PROXY_SERVER_REF

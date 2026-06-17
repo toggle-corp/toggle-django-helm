@@ -46,6 +46,10 @@ worker:
       enabled: true
       command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
       replicaCount: 1
+      # Writer + reader agree on the heartbeat path via this env; the RAM
+      # emptyDir below backs it, so the probe needs no --heartbeat-file flag.
+      extraEnv:
+        BANJO_CELERY_HEARTBEAT_FILE: /var/run/celery/beat_heartbeat
       volumes:
         celery-heartbeat:
           emptyDir:
@@ -54,6 +58,17 @@ worker:
       volumeMounts:
         celery-heartbeat:
           mountPath: /var/run/celery
+      probes:
+        enabled: true
+        liveness:
+          exec:
+            # --max-age must exceed beat's persistent-scheduler tick (300s).
+            command:
+              - banjo-celery-probe
+              - --max-age
+              - "360"
+          periodSeconds: 60
+          failureThreshold: 3
     flower:
       enabled: true
       command: ["celery", "-A", "myapp", "flower", "--port=8000"]
@@ -63,8 +78,12 @@ worker:
         targetPort: 8000
   queueDefaults:
     commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
+    # BANJO_CELERY_HEARTBEAT_FILE points both the worker (writer) and the
+    # banjo-celery-probe reader at one path on the RAM emptyDir below, so the
+    # probe needs no --heartbeat-file flag.
     extraEnv:
       SHARED_QUEUE_KEY: SHARED_VALUE
+      BANJO_CELERY_HEARTBEAT_FILE: /var/run/celery/worker_heartbeat
     volumes:
       celery-heartbeat:
         emptyDir:
@@ -73,6 +92,21 @@ worker:
     volumeMounts:
       celery-heartbeat:
         mountPath: /var/run/celery
+    probes:
+      enabled: true
+      liveness:
+        exec:
+          command:
+            - banjo-celery-probe
+        periodSeconds: 20
+        timeoutSeconds: 5
+        failureThreshold: 6
+      startup:
+        exec:
+          command:
+            - banjo-celery-probe
+        periodSeconds: 5
+        failureThreshold: 30
   queues:
     # NOTE: Make sure keys are lowercase
     default:
