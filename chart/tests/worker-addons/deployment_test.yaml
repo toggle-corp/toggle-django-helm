@@ -166,6 +166,156 @@ tests:
       - notExists:
           path: spec.template.spec.containers[0].resources.limits.cpu
 
+  - it: should render per-addon volume + mount (dict form, name injected)
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            volumes:
+              celery-heartbeat:
+                emptyDir:
+                  medium: Memory
+                  sizeLimit: 1Mi
+            volumeMounts:
+              celery-heartbeat:
+                mountPath: /var/run/celery
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: celery-heartbeat
+            emptyDir:
+              medium: Memory
+              sizeLimit: 1Mi
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: celery-heartbeat
+            mountPath: /var/run/celery
+
+  - it: should concatenate per-addon volumes after global podVolumes
+    template: templates/worker-addons/deployment.yaml
+    set:
+      podVolumes:
+        - name: global-vol
+          emptyDir: {}
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            volumes:
+              celery-heartbeat:
+                emptyDir:
+                  medium: Memory
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].name
+          value: global-vol
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: celery-heartbeat
+
+  - it: should merge addonDefaults volumes with per-addon volumes (addon wins by name)
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          volumes:
+            celery-heartbeat:
+              emptyDir:
+                medium: Memory
+                sizeLimit: 1Mi
+            shared-cache:
+              emptyDir: {}
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            volumes:
+              celery-heartbeat:
+                emptyDir:
+                  sizeLimit: 8Mi
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: shared-cache
+            emptyDir: {}
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: celery-heartbeat
+            emptyDir:
+              medium: Memory
+              sizeLimit: 8Mi
+
+  - it: should reset volumes when per-addon volumes given as array (ignores defaults)
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          volumes:
+            from-defaults:
+              emptyDir: {}
+        addons:
+          - name: exporter
+            enabled: true
+            command: ["celery-exporter"]
+            volumes:
+              - name: only-this
+                emptyDir: {}
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: only-this
+            emptyDir: {}
+      - notContains:
+          path: spec.template.spec.volumes
+          content:
+            name: from-defaults
+            emptyDir: {}
+
+  - it: should not render volumes/volumeMounts when none set and no podVolumes
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      secretsStoreCsiDriver:
+        create: false
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.volumes
+      - notExists:
+          path: spec.template.spec.containers[0].volumeMounts
+
   - it: should not render when worker.enabled is false
     template: templates/worker-addons/deployment.yaml
     set:

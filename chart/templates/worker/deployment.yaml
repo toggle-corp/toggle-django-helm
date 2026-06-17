@@ -13,6 +13,8 @@
 {{- range $config := $queues }}
 {{- if $config.enabled }}
 {{- $queue_name := $config.name }}
+{{- $extraVolumes := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumes "Override" $config.volumes)) }}
+{{- $extraVolumeMounts := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumeMounts "Override" $config.volumeMounts)) }}
 
 ---
 # Queue: {{ $queue_name }}
@@ -53,7 +55,7 @@ spec:
         queue: {{ $queue_name }}
         {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
-      {{- with (include "banjo.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- with (include "banjo.appDefaultVolumes" (dict "Context" $ "Extra" $extraVolumes)) -}}{{ . | nindent 6 }}{{- end }}
       {{- if $.Values.serviceAccount.create }}
       serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
@@ -83,7 +85,7 @@ spec:
                 (dict "Default" $defaults "Override" $config "Context" $)
                 | nindent 12
             }}
-          {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
+          {{- with (include "banjo.appDefaultVolumeMounts" (dict "Context" $ "Extra" $extraVolumeMounts)) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}
 

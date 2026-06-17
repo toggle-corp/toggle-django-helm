@@ -46,6 +46,14 @@ worker:
       enabled: true
       command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
       replicaCount: 1
+      volumes:
+        celery-heartbeat:
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+      volumeMounts:
+        celery-heartbeat:
+          mountPath: /var/run/celery
     flower:
       enabled: true
       command: ["celery", "-A", "myapp", "flower", "--port=8000"]
@@ -57,6 +65,14 @@ worker:
     commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
     extraEnv:
       SHARED_QUEUE_KEY: SHARED_VALUE
+    volumes:
+      celery-heartbeat:
+        emptyDir:
+          medium: Memory
+          sizeLimit: 1Mi
+    volumeMounts:
+      celery-heartbeat:
+        mountPath: /var/run/celery
   queues:
     # NOTE: Make sure keys are lowercase
     default:

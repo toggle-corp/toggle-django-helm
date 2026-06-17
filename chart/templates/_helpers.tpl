@@ -157,6 +157,27 @@ Usage: include "banjo.dictOrArray" $value  →  yaml-formatted list
 {{- end }}
 
 {{/*
+Resolve a per-workload dict-or-array block (volumes / volumeMounts) into a YAML list
+of {name, ...spec} entries, merging defaults with the per-item override.
+- Dict form (both default + override are maps): merged by NAME, per-item wins (like
+  banjo.resourcesConfig / banjo.extraEnvBlock). Each key becomes "name".
+- Array form (override is a slice): per-item array wholesale-resets, ignoring defaults
+  (same semantics as queues/addons themselves).
+- nil/empty on both sides: returns nothing.
+Parse the result with fromYamlArray to get a list value.
+Usage: include "banjo.namedListConfig" (dict "Default" $defaultBlock "Override" $itemBlock)
+*/}}
+{{- define "banjo.namedListConfig" -}}
+{{- $override := .Override -}}
+{{- if kindIs "slice" $override -}}
+{{- include "banjo.dictOrArray" $override -}}
+{{- else -}}
+{{- $merged := merge (dict) (default dict $override) (default dict .Default) -}}
+{{- include "banjo.dictOrArray" $merged -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Render the top-level .Values.extraEnvVars as a k8s pod env array.
 Accepts either dict (keyed by env-var name) or array (with explicit name: field).
 Dict-form values are full k8s env-var specs minus name (use {value: ...} or {valueFrom: ...}).
@@ -223,38 +244,56 @@ Generate default labels for app deployments
 {{- end }}
 
 {{/*
-Generate default volumes for app deployments
+Generate default volumes for app deployments.
+Usage: include "banjo.appDefaultVolumes" (dict "Context" $ "Extra" <list>)
+  Context: root context.
+  Extra (optional): list of fully-formed volume maps (each already including "name"),
+    concatenated after the CSI volume + .Values.podVolumes.
 */}}
 {{- define "banjo.appDefaultVolumes" -}}
-{{- if or .Values.secretsStoreCsiDriver.create .Values.podVolumes -}}
+{{- $ := .Context -}}
+{{- $extra := default (list) .Extra -}}
+{{- if or $.Values.secretsStoreCsiDriver.create $.Values.podVolumes $extra -}}
 volumes:
-{{- if .Values.secretsStoreCsiDriver.create }}
-  - name: {{ template "banjo.secretname" . }}
+{{- if $.Values.secretsStoreCsiDriver.create }}
+  - name: {{ template "banjo.secretname" $ }}
     csi:
       driver: "secrets-store.csi.k8s.io"
       readOnly: true
       volumeAttributes:
-        secretProviderClass: {{ template "banjo.secretProviderName" . }}
+        secretProviderClass: {{ template "banjo.secretProviderName" $ }}
 {{- end }}
-{{- if .Values.podVolumes }}
-{{ .Values.podVolumes | toYaml | indent 2 }}
+{{- if $.Values.podVolumes }}
+{{ $.Values.podVolumes | toYaml | indent 2 }}
+{{- end }}
+{{- if $extra }}
+{{ $extra | toYaml | indent 2 }}
 {{- end }}
 {{- end }}
 {{- end }}
 
 {{/*
-Generate default volumes mounts for app deployments
+Generate default volumes mounts for app deployments.
+Usage: include "banjo.appDefaultVolumeMounts" (dict "Context" $ "Extra" <list>)
+  Context: root context.
+  Extra (optional): list of fully-formed volumeMount maps (each already including "name"),
+    concatenated after the CSI mount + .Values.podVolumeMounts.
 */}}
 {{- define "banjo.appDefaultVolumeMounts" -}}
-{{- if or .Values.secretsStoreCsiDriver.create .Values.podVolumeMounts -}}
+{{- $ := .Context -}}
+{{- $extra := default (list) .Extra -}}
+{{- if or $.Values.secretsStoreCsiDriver.create $.Values.podVolumeMounts $extra -}}
 volumeMounts:
-{{- if .Values.secretsStoreCsiDriver.create }}
-  - name: {{ template "banjo.secretname" . }}
+{{- if $.Values.secretsStoreCsiDriver.create }}
+  - name: {{ template "banjo.secretname" $ }}
     mountPath: /mnt/secrets-store
     readOnly: true
 {{- end }}
-{{- if .Values.podVolumeMounts }}
-{{ .Values.podVolumeMounts | toYaml | indent 2 }}
+{{- if $.Values.podVolumeMounts }}
+{{ $.Values.podVolumeMounts | toYaml | indent 2 }}
+{{- end }}
+{{- if $extra }}
+{{ $extra | toYaml | indent 2 }}
 {{- end }}
 {{- end }}
 {{- end }}

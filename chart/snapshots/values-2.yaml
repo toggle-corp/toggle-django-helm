@@ -204,6 +204,10 @@ spec:
             volumeAttributes:
               secretProviderClass: my-secret-provider
           name: my-stuff
+        - emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+          name: celery-heartbeat
       serviceAccountName: release-name-banjo-helm
       containers:
         - name: beat
@@ -249,6 +253,8 @@ spec:
             - mountPath: /mnt/secrets-store
               name: my-secret
               readOnly: true
+            - mountPath: /var/run/celery
+              name: celery-heartbeat
 ---
 # Source: banjo-helm/templates/worker-addons/deployment.yaml
 # Addon: flower
@@ -396,6 +402,10 @@ spec:
             volumeAttributes:
               secretProviderClass: my-secret-provider
           name: my-stuff
+        - emptyDir:
+            medium: Memory
+            sizeLimit: 1Mi
+          name: celery-heartbeat
       serviceAccountName: release-name-banjo-helm
       containers:
         - name: worker
@@ -450,6 +460,8 @@ spec:
             - mountPath: /mnt/secrets-store
               name: my-secret
               readOnly: true
+            - mountPath: /var/run/celery
+              name: celery-heartbeat
 ---
 # Source: banjo-helm/templates/hooks/job.yaml
 # Hook: collect-static

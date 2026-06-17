@@ -55,7 +55,7 @@ spec:
         {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
       restartPolicy: "Never"
-      {{- with (include "banjo.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- with (include "banjo.appDefaultVolumes" (dict "Context" $)) -}}{{ . | nindent 6 }}{{- end }}
       {{- if $.Values.serviceAccount.create }}
       serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
@@ -85,7 +85,7 @@ spec:
                 (dict "Default" $defaults "Override" $job "Context" $)
                 | nindent 12
             }}
-          {{- with (include "banjo.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
+          {{- with (include "banjo.appDefaultVolumeMounts" (dict "Context" $)) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}
 
