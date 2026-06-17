@@ -488,6 +488,79 @@ tests:
       - notExists:
           path: spec.strategy
 
+  - it: should render terminationGracePeriodSeconds when set on the addon
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            terminationGracePeriodSeconds: 120
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 120
+
+  - it: should let per-addon terminationGracePeriodSeconds override addonDefaults
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          terminationGracePeriodSeconds: 60
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            terminationGracePeriodSeconds: 300
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 300
+
+  - it: should fall back to addonDefaults.terminationGracePeriodSeconds when addon unset
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          terminationGracePeriodSeconds: 90
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 90
+
+  - it: should not render terminationGracePeriodSeconds when unset
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.terminationGracePeriodSeconds
+
   - it: should not render when worker.enabled is false
     template: templates/worker-addons/deployment.yaml
     set:

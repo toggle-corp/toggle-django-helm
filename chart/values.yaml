@@ -135,6 +135,8 @@ worker:
     # a per-queue strategy replaces this entirely. Singletons (e.g. beat) should
     # set `{type: Recreate}` to never run two pods during a rollout.
     strategy: {}
+    # Celery warm-shutdown drain budget on SIGTERM; size to the longest task; k8s default 30s when unset.
+    # terminationGracePeriodSeconds: 60
     # Opt-in probes, merged with per-queue probes (per-queue wins per key).
     # Workers have no HTTP server, so use banjo-utils' banjo-celery-probe,
     # which checks a heartbeat file the worker touches each task cycle.
@@ -212,6 +214,8 @@ worker:
     # a per-addon strategy replaces this entirely. Singletons (e.g. beat) should
     # set `{type: Recreate}` to never run two pods during a rollout.
     strategy: {}
+    # Celery warm-shutdown drain budget on SIGTERM; size to the longest task; k8s default 30s when unset.
+    # terminationGracePeriodSeconds: 60
     resources:
       requests:
         cpu: "50m"

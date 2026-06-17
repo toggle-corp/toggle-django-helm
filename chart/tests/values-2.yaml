@@ -48,6 +48,7 @@ worker:
       replicaCount: 1
       strategy:
         type: Recreate
+      terminationGracePeriodSeconds: 45
       # Writer + reader agree on the heartbeat path via this env; the RAM
       # emptyDir below backs it, so the probe needs no --heartbeat-file flag.
       extraEnv:
@@ -80,6 +81,7 @@ worker:
         targetPort: 8000
   queueDefaults:
     commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
+    terminationGracePeriodSeconds: 90
     # BANJO_CELERY_HEARTBEAT_FILE points both the worker (writer) and the
     # banjo-celery-probe reader at one path on the RAM emptyDir below, so the
     # probe needs no --heartbeat-file flag.

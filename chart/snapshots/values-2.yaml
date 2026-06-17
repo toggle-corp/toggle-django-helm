@@ -211,6 +211,7 @@ spec:
             sizeLimit: 1Mi
           name: celery-heartbeat
       serviceAccountName: release-name-banjo-helm
+      terminationGracePeriodSeconds: 45
       containers:
         - name: beat
           image: "ghcr.io/example/example:v1.0.1"
@@ -419,6 +420,7 @@ spec:
             sizeLimit: 1Mi
           name: celery-heartbeat
       serviceAccountName: release-name-banjo-helm
+      terminationGracePeriodSeconds: 90
       containers:
         - name: worker
           command:

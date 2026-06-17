@@ -64,6 +64,10 @@ spec:
       {{- if $.Values.serviceAccount.create }}
       serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
+      {{- $grace := $addon.terminationGracePeriodSeconds | default $defaults.terminationGracePeriodSeconds -}}
+      {{- with $grace }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
       containers:
         - name: {{ $addon_name }}
           {{- include "banjo.imageConfig"

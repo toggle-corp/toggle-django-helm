@@ -64,6 +64,10 @@ spec:
       {{- if $.Values.serviceAccount.create }}
       serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
+      {{- $grace := $config.terminationGracePeriodSeconds | default $defaults.terminationGracePeriodSeconds -}}
+      {{- with $grace }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
       containers:
         - name: worker
           {{- $command := concat (default (list) $defaults.commandPrefix) (default (list) $config.celeryArgs) }}

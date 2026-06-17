@@ -586,3 +586,76 @@ tests:
     asserts:
       - notExists:
           path: spec.strategy
+
+  - it: should render terminationGracePeriodSeconds when set on the queue
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            terminationGracePeriodSeconds: 120
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 120
+
+  - it: should let per-queue terminationGracePeriodSeconds override queueDefaults
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          terminationGracePeriodSeconds: 60
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            terminationGracePeriodSeconds: 300
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 300
+
+  - it: should fall back to queueDefaults.terminationGracePeriodSeconds when queue unset
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          terminationGracePeriodSeconds: 90
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 90
+
+  - it: should not render terminationGracePeriodSeconds when unset
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.terminationGracePeriodSeconds
