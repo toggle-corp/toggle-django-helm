@@ -184,6 +184,59 @@ tests:
           path: spec.failedJobsHistoryLimit
           value: 3
 
+  - it: should ship the 7-day default ttlSecondsAfterFinished from chart values
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy-01:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+          value: 604800
+
+  - it: should override ttlSecondsAfterFinished per-job
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy-01:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            ttlSecondsAfterFinished: 3600
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+          value: 3600
+
+  - it: should disable ttlSecondsAfterFinished when defaults set to null
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        defaults:
+          ttlSecondsAfterFinished: null
+        jobs:
+          dummy-01:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - notExists:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+
   - it: should render equivalent CronJob from array form
     set:
       image:

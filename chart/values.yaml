@@ -201,6 +201,12 @@ cronjobs:
     # Default k8s CronJob keeps 3 successful + 1 failed. Tighten by default.
     successfulJobsHistoryLimit: 1
     failedJobsHistoryLimit: 1
+    # Age-based GC of finished Jobs (and their pods) via Job TTL controller.
+    # Defaults to 7 days. Set to null here to disable globally and fall back to
+    # the count-based history limits above. (Helm strips null leaves on merge,
+    # so a per-job null inherits this default rather than disabling — disable
+    # globally here, then opt specific jobs back in with a positive override.)
+    ttlSecondsAfterFinished: 604800  # 7 days
     resources:
       requests:
         cpu: "100m"
@@ -219,6 +225,7 @@ cronjobs:
     #   # Per-job overrides — fall back to cronjobs.defaults.* when unset.
     #   successfulJobsHistoryLimit: 1
     #   failedJobsHistoryLimit: 1
+    #   ttlSecondsAfterFinished: 3600  # positive value overrides the 7-day default
     #   command: ["./manage.py", "run-dummy-command"]
 
 # Hook Jobs (ArgoCD or Helm). Annotations are passed through verbatim;

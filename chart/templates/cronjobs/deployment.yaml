@@ -37,6 +37,9 @@ spec:
   jobTemplate:
     spec:
       activeDeadlineSeconds: {{ default 7200 $job.timeLimit }}  # 2 hours default
+      {{- with (default $defaults.ttlSecondsAfterFinished $job.ttlSecondsAfterFinished) }}
+      ttlSecondsAfterFinished: {{ . }}
+      {{- end }}
       template:
         metadata:
           annotations:
