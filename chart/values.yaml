@@ -310,7 +310,7 @@ hooks:
         argocd.argoproj.io/hook: "PostSync"
         argocd.argoproj.io/sync-wave: "10"
         argocd.argoproj.io/hook-delete-policy: HookSucceeded
-      command: ["./manage.py", "wait-for-resources"]
+      command: ["./manage.py", "wait_for_resources"]
     db-migrate:
       enabled: true
       # useGenerateName: true keeps prior migration history (each sync = unique name).
