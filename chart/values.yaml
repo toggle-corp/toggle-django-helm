@@ -31,13 +31,27 @@ api:
     host:
     # Optional. If unset, the cluster's default IngressClass is used.
     className:
+    # Ingress resource-level annotations (rendered on Ingress.metadata.annotations).
+    # Defaulted to the ArgoCD sync-wave so the ingress comes up with the app
+    # workloads (wave 30); see the `hooks.jobs` wave contract below. Override
+    # to add ingress-controller annotations — note helm `--set` replaces this
+    # map wholesale, so re-include the sync-wave if you override via --set.
+    annotations:
+      argocd.argoproj.io/sync-wave: "30"
     tls:
       enabled: false
       secretName:
   # Set to your application's entrypoint; empty by default to keep the chart
   # un-opinionated about Toggle Corp's deploy/run_prod.sh convention.
   command: []
-  # Per-component annotations merged into Deployment.metadata.annotations.
+  # Resource-level annotations merged onto Deployment.metadata.annotations
+  # (the Deployment object itself, NOT the pod template). Defaulted to the
+  # ArgoCD sync-wave; the reloader annotation is added by the chart. Keys here
+  # win over the reloader default. See the `hooks.jobs` wave contract below.
+  deploymentAnnotations:
+    argocd.argoproj.io/sync-wave: "30"
+  # Per-component annotations merged into the pod template
+  # (spec.template.metadata.annotations), NOT the Deployment resource.
   annotations: {}
   # Per-component inline env. tpl-evaluated. Layered on top of the global
   # env: ConfigMap (envFrom) — item entries override global on key conflict.
@@ -126,6 +140,13 @@ worker:
       # - "worker"
       # - "-l"
       # - "INFO"
+    # Resource-level annotations on the worker Deployment object (NOT the pod
+    # template). Defaulted to the ArgoCD sync-wave; per-queue
+    # deploymentAnnotations win per key. See the `hooks.jobs` wave contract below.
+    deploymentAnnotations:
+      argocd.argoproj.io/sync-wave: "30"
+    # Per-component annotations merged into the pod template
+    # (spec.template.metadata.annotations), NOT the Deployment resource.
     annotations: {}
     # Deployment update strategy. Whole-block override (coalesced, NOT merged):
     # a per-queue strategy replaces this entirely. Singletons (e.g. beat) should
@@ -183,6 +204,13 @@ worker:
   # Defaults applied to each worker addon (beat, flower, exporters, etc.).
   addonDefaults:
     extraEnv: {}
+    # Resource-level annotations on the addon Deployment object (NOT the pod
+    # template). Defaulted to the ArgoCD sync-wave; per-addon
+    # deploymentAnnotations win per key. See the `hooks.jobs` wave contract below.
+    deploymentAnnotations:
+      argocd.argoproj.io/sync-wave: "30"
+    # Per-component annotations merged into the pod template
+    # (spec.template.metadata.annotations), NOT the Deployment resource.
     annotations: {}
     # Pod volumes / container mounts. Dict to merge by name, array to reset.
     volumes: {}
@@ -302,12 +330,25 @@ hooks:
       limits:
         memory: "512Mi"
   # Set as a dict to merge with chart defaults via -f overlay; set as an array to reset.
+  #
+  # ArgoCD startup ordering (the wave contract — keep in sync with banjo-alpha-deps):
+  #   wave 0  : deps (tcpg, dragonfly, minio) — regular Sync resources, gated by their
+  #             own readiness probes. ArgoCD waits for the whole wave to be Healthy
+  #             before the next wave, so nothing here needs a sync-wave annotation.
+  #   wave 10 : wait-for-resources — app-side config/connectivity validation.
+  #   wave 20 : db-migrate, collect-static — schema + static, run only after deps healthy.
+  #   wave 30 : api, worker, beat, ingress — set via the resource-level
+  #             `argocd.argoproj.io/sync-wave` default on `api.deploymentAnnotations`,
+  #             `worker.queueDefaults.deploymentAnnotations`,
+  #             `worker.addonDefaults.deploymentAnnotations`, and `api.ingress.annotations`.
+  # Hooks are `hook: Sync` (NOT PreSync — PreSync runs before deps are even applied and
+  # would deadlock on bootstrap; NOT PostSync — that runs after api is already serving).
   jobs:
     # NOTE: Make sure keys are lowercase.
     wait-for-resources:
-      enabled: false  # opt-in; requires https://github.com/toggle-corp/banjo-utils
+      enabled: true  # gate for api/worker; requires https://github.com/toggle-corp/banjo-utils
       annotations:
-        argocd.argoproj.io/hook: "PostSync"
+        argocd.argoproj.io/hook: "Sync"
         argocd.argoproj.io/sync-wave: "10"
         argocd.argoproj.io/hook-delete-policy: HookSucceeded
       command: ["./manage.py", "wait_for_resources"]
@@ -321,13 +362,13 @@ hooks:
       activeDeadlineSeconds: 3600
       ttlSecondsAfterFinished: 604800  # 7 days
       annotations:
-        argocd.argoproj.io/hook: "PostSync"
+        argocd.argoproj.io/hook: "Sync"
         argocd.argoproj.io/sync-wave: "20"
       command: ["./manage.py", "migrate"]
     collect-static:
       enabled: true
       annotations:
-        argocd.argoproj.io/hook: "PostSync"
+        argocd.argoproj.io/hook: "Sync"
         argocd.argoproj.io/sync-wave: "20"
         argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
       command: ["./manage.py", "collectstatic", "--noinput"]

@@ -392,11 +392,13 @@ api:
 
 Seeded hooks now have explicit sync-waves to give consumers room to inject custom hooks between them:
 
-- `wait-for-resources`: wave 10 (runs first; opt-in)
+- `wait-for-resources`: wave 10 (runs first)
 - `db-migrate`: wave 20
 - `collect-static`: wave 20 (runs in parallel with db-migrate; collectstatic is independent of DB)
 
 Custom hooks should use wave numbers with gaps (e.g., 15, 25) so future chart-shipped hooks don't collide.
+
+> **Note:** the hook *phase* (`Sync` vs `PostSync`) and the new app-workload wave 30 are described in **behavioral change 8** below — read it together with this note.
 
 ### 5. `extraEnvVars` dict-or-array (new)
 
@@ -466,6 +468,30 @@ api:
 
 ---
 
+### 8. Hooks moved to the `Sync` phase + app workloads gated at sync-wave 30 (BREAKING)
+
+banjo-helm + banjo-alpha-deps deploy as **one multi-source ArgoCD Application**. To make ArgoCD start things in dependency order — deps → schema/static → app — the chart now uses a single wave contract across both repos:
+
+| Wave | What | Annotation |
+|---|---|---|
+| 0 | deps (tcpg, dragonfly, minio) — in `banjo-alpha-deps`, **not** this chart | none (regular `Sync` resources; ArgoCD gates the whole wave on their readiness probes) |
+| 10 | `wait-for-resources` | `argocd.argoproj.io/hook: Sync` |
+| 20 | `db-migrate`, `collect-static` | `argocd.argoproj.io/hook: Sync` |
+| 30 | `api`, `worker` (all queues), `worker.addons` (incl. beat), `api.ingress` | `argocd.argoproj.io/sync-wave: "30"` |
+
+Three behavioral changes vs the previous 0.4.0-devN shape:
+
+- **Hooks are now `Sync`, not `PostSync`.** `PostSync` ran *after* the app was already serving — migrations could lag a live api. `Sync` (combined with the waves above) runs them mid-sync, after deps are healthy but before app workloads. `PreSync` is deliberately **not** used: it runs before deps are even applied, deadlocking bootstrap.
+- **App workloads are gated at sync-wave 30.** `api`, `worker` (all queues), `worker.addons` (incl. beat) and `api.ingress` now carry `argocd.argoproj.io/sync-wave: "30"` on the **resource** (Deployment/Ingress) metadata, so ArgoCD won't start them until the wave-10/20 hooks succeed. The wave is a normal resource-level annotation default, not a custom value — it lives in `api.deploymentAnnotations`, `worker.queueDefaults.deploymentAnnotations`, `worker.addonDefaults.deploymentAnnotations`, and `api.ingress.annotations` (each defaulted to `{argocd.argoproj.io/sync-wave: "30"}`). Note `deploymentAnnotations` is the resource-level surface — distinct from the pod-level `annotations` on those same components. To change or drop the wave, override the relevant `deploymentAnnotations` map (the chart still adds `reloader.stakater.com/auto`; under plain `helm install` the inert annotation is harmless). `cronjobs` are intentionally **not** waved.
+- **`wait-for-resources` is enabled by default.** It was opt-in before. It gates api/worker on config + connectivity validation and **requires** the `wait_for_resources` management command from [banjo-utils](https://github.com/toggle-corp/banjo-utils). If your app image does not ship that command, set `hooks.jobs.wait-for-resources.enabled: false` or the sync will hang on a failing wave-10 hook.
+
+**Migration:**
+- ArgoCD consumers: no values change needed for the common case — the chart seeds the correct phase/waves. Ensure your deps live in wave 0 (unannotated regular resources) and that your image ships `wait_for_resources` (banjo-utils), or disable that hook.
+- Plain Helm consumers: the sync-wave annotation is inert under Helm; leave it, or override the `*.deploymentAnnotations` / `api.ingress.annotations` maps to drop it. Hook phase is governed by the `argocd.argoproj.io/*` annotations, which Helm ignores anyway.
+- If you previously relied on hooks running `PostSync` (after api was up), note they now block the app at wave 20.
+
+---
+
 ## Verification protocol
 
 Run this **before and after** the migration to prove the diff matches the expected changes.
@@ -486,7 +512,9 @@ diff /tmp/before.yaml /tmp/after.yaml | less
 ### Expected diff (these changes SHOULD appear)
 
 - `spec.revisionHistoryLimit: 1` on every Deployment.
-- `argocd.argoproj.io/sync-wave: "10"|"20"` annotations on hook Jobs.
+- `argocd.argoproj.io/sync-wave: "10"|"20"` and `argocd.argoproj.io/hook: Sync` annotations on hook Jobs.
+- A third hook Job, `wait-for-resources` (wave 10), now rendered by default.
+- `argocd.argoproj.io/sync-wave: "30"` on the api, worker-queue, worker-addon (incl. beat) Deployments and the api Ingress.
 - `spec.ttlSecondsAfterFinished: 604800` on the db-migrate Job.
 - `spec.activeDeadlineSeconds: 3600` on the db-migrate Job.
 - **Absent**: `argocd.argoproj.io/hook-delete-policy` annotation on the db-migrate Job (regression guard).

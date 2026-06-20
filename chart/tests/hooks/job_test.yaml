@@ -4,7 +4,7 @@ templates:
   - templates/config/secret.yaml
   - templates/config/configmap.yaml
 tests:
-  - it: should render db-migrate and collect-static under default values (wait-for-resources opt-in)
+  - it: should render wait-for-resources, db-migrate and collect-static under default values
     template: templates/hooks/job.yaml
     set:
       image:
@@ -12,7 +12,7 @@ tests:
         tag: v1
     asserts:
       - hasDocuments:
-          count: 2
+          count: 3
 
   - it: db-migrate ships with generateName, ttlSecondsAfterFinished=604800, activeDeadlineSeconds=3600
     template: templates/hooks/job.yaml
@@ -22,6 +22,8 @@ tests:
         tag: v1
       hooks:
         jobs:
+          wait-for-resources:
+            enabled: false
           db-migrate:
             enabled: true
           collect-static:
@@ -43,7 +45,7 @@ tests:
           value: 3600
       - equal:
           path: metadata.annotations["argocd.argoproj.io/hook"]
-          value: PostSync
+          value: Sync
       - equal:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
           value: "20"
@@ -60,6 +62,8 @@ tests:
         tag: v1
       hooks:
         jobs:
+          wait-for-resources:
+            enabled: false
           db-migrate:
             enabled: false
           collect-static:
@@ -72,13 +76,16 @@ tests:
       - notExists:
           path: metadata.generateName
       - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: Sync
+      - equal:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
           value: "20"
       - equal:
           path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
           value: BeforeHookCreation
 
-  - it: wait-for-resources is disabled by default, enables on flag
+  - it: wait-for-resources is enabled by default with hook Sync, sync-wave 10
     template: templates/hooks/job.yaml
     set:
       image:
@@ -86,8 +93,6 @@ tests:
         tag: v1
       hooks:
         jobs:
-          wait-for-resources:
-            enabled: true
           db-migrate:
             enabled: false
           collect-static:
@@ -95,6 +100,9 @@ tests:
     asserts:
       - hasDocuments:
           count: 1
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: Sync
       - equal:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
           value: "10"
@@ -110,6 +118,8 @@ tests:
         tag: v1
       hooks:
         jobs:
+          wait-for-resources:
+            enabled: false
           db-migrate:
             enabled: false
           collect-static:
@@ -162,6 +172,8 @@ tests:
         tag: v1
       hooks:
         jobs:
+          wait-for-resources:
+            enabled: false
           db-migrate:
             enabled: false
           collect-static:
@@ -197,6 +209,8 @@ tests:
           extraEnv:
             SHARED: "from-defaults"
         jobs:
+          wait-for-resources:
+            enabled: false
           db-migrate:
             enabled: true
             extraEnv:

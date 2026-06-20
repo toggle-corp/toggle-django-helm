@@ -99,6 +99,7 @@ kind: Deployment
 metadata:
   name: release-name-banjo-helm-api
   annotations:
+    argocd.argoproj.io/sync-wave: "30"
     reloader.stakater.com/auto: "true"
   labels:
     app: release-name-banjo-helm
@@ -157,6 +158,7 @@ kind: Deployment
 metadata:
   name: release-name-banjo-helm-worker-beat
   annotations:
+    argocd.argoproj.io/sync-wave: "30"
     reloader.stakater.com/auto: "true"
   labels:
     app: release-name-banjo-helm
@@ -216,6 +218,7 @@ kind: Deployment
 metadata:
   name: release-name-banjo-helm-worker-flower
   annotations:
+    argocd.argoproj.io/sync-wave: "30"
     reloader.stakater.com/auto: "true"
   labels:
     app: release-name-banjo-helm
@@ -277,6 +280,7 @@ kind: Deployment
 metadata:
   name: release-name-banjo-helm-worker-default
   annotations:
+    argocd.argoproj.io/sync-wave: "30"
     reloader.stakater.com/auto: "true"
   labels:
     app: release-name-banjo-helm
@@ -338,7 +342,7 @@ kind: Job
 metadata:
   name: release-name-banjo-helm-collect-static
   annotations:
-    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
     argocd.argoproj.io/sync-wave: "20"
   labels:
@@ -390,7 +394,7 @@ kind: Job
 metadata:
   generateName: release-name-banjo-helm-db-migrate-
   annotations:
-    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/sync-wave: "20"
   labels:
     app: release-name-banjo-helm
@@ -435,6 +439,57 @@ spec:
             - name: DJANGO_APP_TYPE
               value: "hook"
 ---
+# Source: banjo-helm/templates/hooks/job.yaml
+# Hook: wait-for-resources
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: release-name-banjo-helm-wait-for-resources
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "10"
+  labels:
+    app: release-name-banjo-helm
+    component: hook
+    hookName: wait-for-resources
+    environment: ALPHA
+    release: release-name
+spec:
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 66a6fc24b76971f276c49234b716b2b8226b4c72a18511215a54ab9a414b4d53
+        checksum/configmap: 3f5505b0f56b1094e754509a8dd06e18d87db0905c755ea4b4ab0cc647f29da3
+      labels:
+        app: release-name-banjo-helm
+        component: hook
+        hookName: wait-for-resources
+    spec:
+      restartPolicy: "Never"
+      serviceAccountName: secret-account
+      containers:
+        - name: wait-for-resources
+          image: "ghcr.io/example/example:v1.0.1"
+          imagePullPolicy: IfNotPresent
+          command: 
+            - ./manage.py
+            - wait_for_resources
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          envFrom:
+            - secretRef:
+                name: release-name-banjo-helm-secret
+            - configMapRef:
+                name: release-name-banjo-helm-env-name
+          env:
+            - name: DJANGO_APP_TYPE
+              value: "hook"
+---
 # Source: banjo-helm/templates/api/ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -445,6 +500,8 @@ metadata:
     component: api
     environment: ALPHA
     release: release-name
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
 spec:
   ingressClassName: "nginx"
   rules:

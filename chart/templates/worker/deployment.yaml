@@ -22,7 +22,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "banjo.fullname" $ }}-worker-{{ $queue_name }}
-  {{- with (include "banjo.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
+  {{- $deployAnnotations := merge (deepCopy (default (dict) $config.deploymentAnnotations)) (default (dict) $defaults.deploymentAnnotations) }}
+  {{- with (include "banjo.appDefaultDeploymentAnnotations" (dict "Annotations" $deployAnnotations)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" $ }}
     component: worker

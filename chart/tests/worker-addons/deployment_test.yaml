@@ -37,6 +37,48 @@ tests:
       - hasDocuments:
           count: 2
 
+  - it: should carry argocd sync-wave 30 on the addon Deployment by default
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "30"
+      - equal:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+          value: "true"
+
+  - it: should let per-addon deploymentAnnotations override addonDefaults sync-wave
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
+            deploymentAnnotations:
+              argocd.argoproj.io/sync-wave: "99"
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "99"
+      - equal:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+          value: "true"
+
   - it: should render addon with command, image, and addon label
     template: templates/worker-addons/deployment.yaml
     documentSelector:

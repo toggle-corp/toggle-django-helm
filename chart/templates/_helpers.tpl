@@ -244,8 +244,9 @@ Usage: include "banjo.extraEnvBlock" (dict "Default" $defaultsBlock "Override" $
 Generate default annotations for app deployments
 */}}
 {{- define "banjo.appDefaultDeploymentAnnotations" -}}
+{{- $ann := merge (deepCopy (default (dict) .Annotations)) (dict "reloader.stakater.com/auto" "true") -}}
 annotations:
-  reloader.stakater.com/auto: "true"
+  {{- toYaml $ann | nindent 2 }}
 {{- end }}
 
 {{/*

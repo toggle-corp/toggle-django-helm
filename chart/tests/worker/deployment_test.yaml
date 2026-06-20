@@ -29,6 +29,48 @@ tests:
       - hasDocuments:
           count: 2
 
+  - it: should carry argocd sync-wave 30 on the queue Deployment by default
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "30"
+      - equal:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+          value: "true"
+
+  - it: should let per-queue deploymentAnnotations override queueDefaults sync-wave
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            deploymentAnnotations:
+              argocd.argoproj.io/sync-wave: "99"
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "99"
+      - equal:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+          value: "true"
+
   - it: should render Deployment with queue label, command prefix + celeryArgs and image
     template: templates/worker/deployment.yaml
     documentSelector:

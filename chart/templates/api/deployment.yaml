@@ -4,7 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "banjo.fullname" . }}-api
-  {{- with (include "banjo.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
+  {{- with (include "banjo.appDefaultDeploymentAnnotations" (dict "Annotations" .Values.api.deploymentAnnotations)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" . }}
     component: api

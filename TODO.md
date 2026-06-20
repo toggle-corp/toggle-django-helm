@@ -11,3 +11,4 @@
   ```
   To my understanding the preStop sleep isn't about draining in-flight requests (you're right that uvicorn handles that via SIGTERM). But they might solve a different problem: a race condition between Kubernetes sending SIGTERM and kube-proxy finishing endpoint propagation. Without the sleep, new requests can still be routed to the pod after uvicorn has already stopped accepting them, resulting in connection refused errors. The sleep runs before SIGTERM, giving kube-proxy time to remove the pod from service endpoints first. See: learnk8s.io/graceful-shutdown
   ```
+- [x] Hook wave - don't run api/worker/worker-beat until hooks are good
