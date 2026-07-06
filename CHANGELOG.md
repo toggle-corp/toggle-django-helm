@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.4.0-dev2](https://github.com/toggle-corp/banjo-helm/compare/0.3.0..0.4.0-dev2) - 2026-07-06
+### Changes:
+
+#### 🚀  Features
+
+- *(api)* Add opt-in httpGet probes with banjo-utils defaults - ([6e04f5e](https://github.com/toggle-corp/banjo-helm/commit/6e04f5efd2f3789c6ab100a23d1f742880d07fe4))
+- *(api)* [**breaking**] PreStop sleep + computed terminationGracePeriodSeconds for graceful shutdown - ([bb1aa05](https://github.com/toggle-corp/banjo-helm/commit/bb1aa05fe5e4e3752db49e302240c2460b1e348d))
+- *(chart)* [**breaking**] Hooks restructure with regression guard for inert annotation - ([080eca5](https://github.com/toggle-corp/banjo-helm/commit/080eca5d3c5c0b11fa4e2a4f3c86fce3ace510a4))
+- *(chart)* [**breaking**] Cronjobs restructure (defaults sibling + dict-or-array) - ([298799b](https://github.com/toggle-corp/banjo-helm/commit/298799b4c6ef7cb1de17da367b1e371c471f773e))
+- *(chart)* [**breaking**] Worker addons replace beat + flower as first-class - ([4fa8b60](https://github.com/toggle-corp/banjo-helm/commit/4fa8b60488b16f5edfd1bf2544bbd17b7743b375))
+- *(chart)* [**breaking**] Worker queues restructure (queueDefaults + dict-or-array) - ([19d7253](https://github.com/toggle-corp/banjo-helm/commit/19d7253b9c501bb8f0ed4523224874494cd443cf))
+- *(chart)* ExtraEnvVars supports both dict and array forms - ([68ab350](https://github.com/toggle-corp/banjo-helm/commit/68ab3505b527fc88626960bdde6f529f7ab6a5f9))
+- *(chart)* [**breaking**] Restructure api block; add banjo.extraEnvBlock helper - ([efc1d24](https://github.com/toggle-corp/banjo-helm/commit/efc1d24d74f13f2fa11c1bf77323d17a0f37e503))
+- *(chart)* Add chart-wide revisionHistoryLimit: 1 - ([288208c](https://github.com/toggle-corp/banjo-helm/commit/288208c16d943a3d1031db6f0f031f97965ba36b))
+- *(cronjobs)* Add ttlSecondsAfterFinished with 7-day default - ([90ce011](https://github.com/toggle-corp/banjo-helm/commit/90ce0111bea04afa386aabb33cab3b4dd3516208))
+- *(hooks)* [**breaking**] Gate api/worker behind Sync-phase hooks via sync-wave - ([bd20a73](https://github.com/toggle-corp/banjo-helm/commit/bd20a734881872bc96bcb8a9e0f4681387bfa046))
+- *(ingress)* [**breaking**] Make api.ingress.className optional, omit when unset - ([156dccf](https://github.com/toggle-corp/banjo-helm/commit/156dccff518ba22e11f750ac332ad61faccfa988))
+- *(ingress)* [**breaking**] Move ingress.* -> api.ingress.* - ([093870f](https://github.com/toggle-corp/banjo-helm/commit/093870f14ab0b12a6ba12863df8099548d9b7bd5))
+- *(worker)* TerminationGracePeriodSeconds passthrough - ([20c243a](https://github.com/toggle-corp/banjo-helm/commit/20c243a383e1424155b1559cc732738f8db69ee4))
+- *(worker)* Strategy passthrough (Recreate for beat singleton) - ([aa89751](https://github.com/toggle-corp/banjo-helm/commit/aa89751ddb960b4da911f41b7bef5048cb03eae4))
+- *(worker)* Celery liveness/startup probes passthrough for queues + addons - ([f4b3ea9](https://github.com/toggle-corp/banjo-helm/commit/f4b3ea98b216bed0f7a9bab4c59a62e60af69e38))
+- *(worker)* Per-workload volumes/volumeMounts (dict-or-array) - ([f0e2328](https://github.com/toggle-corp/banjo-helm/commit/f0e2328f21b9b8a308647b52e5137b44409e062e))
+
+#### 🐛 Bug Fixes
+
+- Fixup! feat(chart)!: hooks restructure with regression guard for inert annotation - ([6070378](https://github.com/toggle-corp/banjo-helm/commit/60703785ac3a1a1a59c552082e4670a06e1126bd))
+
+#### 📚 Documentation
+
+- *(migration)* Note ingress restructure and optional className - ([f7973ec](https://github.com/toggle-corp/banjo-helm/commit/f7973eced65bfb992790e4af8b7f3703ca8d8592))
+- *(worker)* Complete copy-paste celery probe examples in values.yaml - ([20c656b](https://github.com/toggle-corp/banjo-helm/commit/20c656bdf00b8db54dd0b8724894e4a85166e33b))
+- CHANGELOG entry + Claude-optimized MIGRATION.md for new release - ([4a51b59](https://github.com/toggle-corp/banjo-helm/commit/4a51b59cfdc580172051102901c616dbd2ff1a93))
+
+#### ⚙️ Miscellaneous Tasks
+
+- *(chart)* Regenerate render snapshots for 0.4.0-dev1 shape - ([5fc7a79](https://github.com/toggle-corp/banjo-helm/commit/5fc7a79fa42670a25d99e462b2656e80d24598d1))
+- Bump to 0.4.0-dev1, drop bundled subcharts, rename django-app.* → banjo.* - ([4ca0bec](https://github.com/toggle-corp/banjo-helm/commit/4ca0bec832e60e55db46ddde7c3638e72a304ce9))
+
+
 ## [0.3.0](https://github.com/toggle-corp/banjo-helm/compare/0.2.8..0.3.0) - 2026-04-30
 ### Changes:
 
@@ -141,7 +180,7 @@
 - (#1) [Feat: allow object for extraManifests](https://github.com/toggle-corp/banjo-helm/pull/1)
 
 
-## [0.2.0] - 2025-08-20
+## [0.2.0](https://github.com/toggle-corp/banjo-helm/compare/0.1.0-dev1..0.2.0) - 2025-08-20
 ### Changes:
 
 #### 🚀  Features
