@@ -19,6 +19,26 @@ data:
   # Configs
   ENV_1: "VALUE_1"
 ---
+# Source: banjo-helm/templates/hooks/job.yaml
+# Hook files ConfigMap for: run-shell-script
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: release-name-banjo-helm-run-shell-script-files
+  annotations:
+    argocd.argoproj.io/hook: "Sync"
+    argocd.argoproj.io/sync-wave: "20"
+    # Refresh content on every sync and clean up before the next run.
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  labels:
+    app: release-name-banjo-helm
+    component: hook
+    hookName: run-shell-script
+    environment: ALPHA
+    release: release-name
+data:
+  seed.py: "from django.contrib.auth import get_user_model\nUser = get_user_model()\nUser.objects.get_or_create(username=\"admin\", defaults={\"is_superuser\": True})\n"
+---
 # Source: banjo-helm/templates/api/service.yaml
 apiVersion: v1
 kind: Service
@@ -849,6 +869,100 @@ spec:
               readOnly: true
             - mountPath: /mnt/secrets-store
               name: my-secret
+              readOnly: true
+---
+# Source: banjo-helm/templates/hooks/job.yaml
+# Hook: run-shell-script
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: release-name-banjo-helm-run-shell-script
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    argocd.argoproj.io/sync-wave: "20"
+  labels:
+    app: release-name-banjo-helm
+    component: hook
+    hookName: run-shell-script
+    environment: ALPHA
+    release: release-name
+spec:
+  template:
+    metadata:
+      annotations:
+        checksum/secret: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/configmap: 3f5505b0f56b1094e754509a8dd06e18d87db0905c755ea4b4ab0cc647f29da3
+        aws.workload.identity/use: "true"
+        aws.workload.identity/use2: "true"
+        aws.workload.identity/use3: "true"
+      labels:
+        app: release-name-banjo-helm
+        component: hook
+        hookName: run-shell-script
+        azure.workload.identity/use: "true"
+    spec:
+      restartPolicy: "Never"
+      volumes:
+        - name: release-name-banjo-helm-secret
+          csi:
+            driver: "secrets-store.csi.k8s.io"
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: release-name-banjo-helm-secret-provider
+        - csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: "true"
+            volumeAttributes:
+              secretProviderClass: my-secret-provider
+          name: my-stuff
+        - configMap:
+            name: release-name-banjo-helm-run-shell-script-files
+          name: hook-files
+      serviceAccountName: release-name-banjo-helm
+      containers:
+        - name: run-shell-script
+          image: "ghcr.io/example/example:v1.0.1"
+          imagePullPolicy: IfNotPresent
+          imagePullSecrets:
+            - name: regcred
+          command: 
+            - sh
+            - -c
+            - ./manage.py shell < /etc/hook-files/seed.py
+          resources:
+            limits:
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+          envFrom:
+            - secretRef:
+                name: release-name-banjo-helm-secret
+            - secretRef:
+                name: my-custom-secrets
+            - configMapRef:
+                name: release-name-banjo-helm-env-name
+            - configMapRef:
+                name: my-custom-envs
+          env:
+            - name: DJANGO_APP_TYPE
+              value: "hook"
+            - name: SPECIAL_LEVEL_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: special.how
+                  name: special-config
+            
+          volumeMounts:
+            - name: release-name-banjo-helm-secret
+              mountPath: /mnt/secrets-store
+              readOnly: true
+            - mountPath: /mnt/secrets-store
+              name: my-secret
+              readOnly: true
+            - mountPath: /etc/hook-files
+              name: hook-files
               readOnly: true
 ---
 # Source: banjo-helm/templates/hooks/job.yaml

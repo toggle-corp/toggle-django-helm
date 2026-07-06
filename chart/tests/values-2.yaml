@@ -148,6 +148,18 @@ hooks:
       command: ["/bin/bash", "-c"]
       args:
         - "gdate --iso-8601 && ls"
+    run-shell-script:
+      enabled: true
+      annotations:
+        argocd.argoproj.io/hook: "Sync"
+        argocd.argoproj.io/sync-wave: "20"
+        argocd.argoproj.io/hook-delete-policy: HookSucceeded
+      files:
+        seed.py: |
+          from django.contrib.auth import get_user_model
+          User = get_user_model()
+          User.objects.get_or_create(username="admin", defaults={"is_superuser": True})
+      command: ["sh", "-c", "./manage.py shell < /etc/hook-files/seed.py"]
 
 cronjobs:
   enabled: true

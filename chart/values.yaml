@@ -372,6 +372,26 @@ hooks:
         argocd.argoproj.io/sync-wave: "20"
         argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
       command: ["./manage.py", "collectstatic", "--noinput"]
+    # Mount inline script content as files and pipe one into a shell. Each key
+    # under `files` becomes a file at `filesMountPath` (default /etc/hook-files),
+    # rendered into a per-job ConfigMap that inherits this job's hook + sync-wave
+    # annotations (delete-policy forced to BeforeHookCreation so content is fresh
+    # every sync). stdin redirection needs a shell, so wrap the command yourself
+    # with `sh -c` and reference the mounted path — the chart does not do this for
+    # you. File keys must match [-._a-zA-Z0-9]+ and filesMountPath must be absolute.
+    # run-shell-script:
+    #   enabled: false
+    #   annotations:
+    #     argocd.argoproj.io/hook: "Sync"
+    #     argocd.argoproj.io/sync-wave: "20"
+    #     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    #   filesMountPath: /etc/hook-files  # default; override if it collides with the image
+    #   files:
+    #     seed.py: |
+    #       from django.contrib.auth import get_user_model
+    #       User = get_user_model()
+    #       User.objects.get_or_create(username="admin", defaults={"is_superuser": True})
+    #   command: ["sh", "-c", "./manage.py shell < /etc/hook-files/seed.py"]
 
 extraConfigMapName: ""  # User provided name
 envConfigMapName: ""
