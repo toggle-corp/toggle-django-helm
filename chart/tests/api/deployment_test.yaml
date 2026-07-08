@@ -40,6 +40,57 @@ tests:
           value: ["/code/deploy/run_prod.sh"]
       - notExists:
           path: spec.replicas
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 1
+
+  - it: should carry argocd sync-wave 30 and reloader annotation by default
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "30"
+      - equal:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+          value: "true"
+
+  - it: should let api.deploymentAnnotations override the sync-wave, keeping reloader
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        deploymentAnnotations:
+          argocd.argoproj.io/sync-wave: "99"
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "99"
+      - equal:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+          value: "true"
+
+  - it: should override revisionHistoryLimit when set chart-wide
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      revisionHistoryLimit: 5
+      api:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 5
 
   - it: should set replicas when api.replicaCount is set
     template: templates/api/deployment.yaml
@@ -79,3 +130,389 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: should ship resource defaults with memory limit but no CPU limit
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+    asserts:
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.requests.memory
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.limits.memory
+      - notExists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+
+  - it: should omit command field when api.command is empty (default)
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        command: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].command
+
+  - it: should merge api.annotations onto pod template metadata
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        annotations:
+          custom.annotation/key: "custom-value"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["custom.annotation/key"]
+          value: "custom-value"
+
+  - it: should render api.extraEnv as inline pod env vars
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        extraEnv:
+          LOG_LEVEL: DEBUG
+          REGION: us-east-1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: LOG_LEVEL
+            value: "DEBUG"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REGION
+            value: "us-east-1"
+
+  - it: should tpl-evaluate api.extraEnv values
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1.2.3
+      api:
+        enabled: true
+        extraEnv:
+          APP_VERSION: "{{ .Values.image.tag }}"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: APP_VERSION
+            value: "v1.2.3"
+
+  - it: should render extraEnvVars when given as array form (k8s native)
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+      extraEnvVars:
+        - name: ARRAY_KEY
+          value: literal
+        - name: SECRET_REF_KEY
+          valueFrom:
+            secretKeyRef:
+              name: my-secret
+              key: my-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ARRAY_KEY
+            value: literal
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SECRET_REF_KEY
+            valueFrom:
+              secretKeyRef:
+                name: my-secret
+                key: my-key
+
+  - it: should render preStop sleep and computed terminationGracePeriodSeconds by default
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.sleep.seconds
+          value: 8
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 38
+
+  - it: should omit lifecycle and terminationGracePeriodSeconds when preStopSleepSeconds is 0
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        lifecycle:
+          preStopSleepSeconds: 0
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].lifecycle
+      - notExists:
+          path: spec.template.spec.terminationGracePeriodSeconds
+
+  - it: should compute terminationGracePeriodSeconds as preStopSleepSeconds + 30
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        lifecycle:
+          preStopSleepSeconds: 15
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.sleep.seconds
+          value: 15
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 45
+
+  - it: should honor explicit api.terminationGracePeriodSeconds override
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        terminationGracePeriodSeconds: 60
+        lifecycle:
+          preStopSleepSeconds: 8
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.sleep.seconds
+          value: 8
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 60
+
+  - it: should not render any probe when api.probes.enabled is false (default)
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+
+  - it: should render all three probes with banjo-utils defaults when enabled
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz/live/
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.port
+          value: http
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 20
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 6
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthz/ready/
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
+          value: 10
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.failureThreshold
+          value: 6
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet.path
+          value: /healthz/ready/
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.periodSeconds
+          value: 5
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 30
+
+  - it: should deep-merge a single override onto probe defaults
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          liveness:
+            periodSeconds: 30
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 30
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz/live/
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 6
+
+  - it: should skip a single probe when its block is nulled
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          startup: null
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].livenessProbe
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should deep-merge a custom probe path while keeping port from defaults
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          readiness:
+            httpGet:
+              path: /custom/health/
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /custom/health/
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.port
+          value: http
+
+  # oneOf gotcha: adding a second handler (tcpSocket) without nulling httpGet
+  # leaves BOTH in the rendered manifest because Helm deep-merges maps. The
+  # apiserver will reject this with `Probe.handler: oneOf [HTTPGet, ...]`.
+  # Switching handlers requires `--set api.probes.<probe>.httpGet=null`
+  # (see the next test). This test pins the merge behavior as known.
+  - it: should render both httpGet and tcpSocket when tcpSocket is added without nulling httpGet
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          liveness:
+            tcpSocket:
+              port: http
+    asserts:
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: http
+
+  # Documented workaround for switching probe handler: null the default
+  # httpGet block, then add the new handler. Result is a valid one-of manifest.
+  - it: should drop httpGet when nulled and render tcpSocket alone
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        probes:
+          enabled: true
+          liveness:
+            httpGet: null
+            tcpSocket:
+              port: http
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.tcpSocket.port
+          value: http
+
+  - it: should render extraEnvVars when given as dict form (keyed by env-var name)
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+      extraEnvVars:
+        DICT_KEY:
+          value: literal
+        DICT_REF_KEY:
+          valueFrom:
+            configMapKeyRef:
+              name: my-config
+              key: my-key
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DICT_KEY
+            value: literal
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DICT_REF_KEY
+            valueFrom:
+              configMapKeyRef:
+                name: my-config
+                key: my-key

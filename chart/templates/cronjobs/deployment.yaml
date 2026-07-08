@@ -1,17 +1,27 @@
 {{- if .Values.cronjobs.enabled }}
 
-{{- range $jobName, $job := .Values.cronjobs.jobs }}
+{{- $defaults := default dict .Values.cronjobs.defaults -}}
+{{- $jobs := list -}}
+{{- if kindIs "map" .Values.cronjobs.jobs -}}
+  {{- range $name, $cfg := .Values.cronjobs.jobs -}}
+    {{- $jobs = append $jobs (merge (dict "name" $name) (default dict $cfg)) -}}
+  {{- end -}}
+{{- else if kindIs "slice" .Values.cronjobs.jobs -}}
+  {{- $jobs = .Values.cronjobs.jobs -}}
+{{- end -}}
 
+{{- range $job := $jobs }}
 {{- if $job.enabled }}
+{{- $jobName := $job.name }}
 
 ---
 # Job: {{ $jobName }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ template "django-app.fullname" $ }}-job-{{ $jobName | nospace | lower | replace "_" "-" }}
+  name: {{ template "banjo.fullname" $ }}-job-{{ $jobName | nospace | lower | replace "_" "-" }}
   labels:
-    app: {{ include "django-app.fullname" $ }}
+    app: {{ include "banjo.fullname" $ }}
     component: cronjob
     jobName: {{ $jobName }}
     environment: {{ $.Values.environment }}
@@ -22,46 +32,61 @@ spec:
   timeZone: {{ $job.timeZone | quote }}
   {{- end }}
   concurrencyPolicy: "Forbid"
+  successfulJobsHistoryLimit: {{ default $defaults.successfulJobsHistoryLimit $job.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ default $defaults.failedJobsHistoryLimit $job.failedJobsHistoryLimit }}
   jobTemplate:
     spec:
       activeDeadlineSeconds: {{ default 7200 $job.timeLimit }}  # 2 hours default
+      {{- with (default $defaults.ttlSecondsAfterFinished $job.ttlSecondsAfterFinished) }}
+      ttlSecondsAfterFinished: {{ . }}
+      {{- end }}
       template:
         metadata:
-          {{- with $.Values.podAnnotations }}
           annotations:
+            {{- with $.Values.podAnnotations }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- end }}
+            {{- with $defaults.annotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with $job.annotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           labels:
-            app: {{ include "django-app.fullname" $ }}
+            app: {{ include "banjo.fullname" $ }}
             component: cronjob
-            {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 12 }}{{- end }}
+            {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 12 }}{{- end }}
         spec:
           restartPolicy: "Never"
-          {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 10 }}{{- end }}
+          {{- with (include "banjo.appDefaultVolumes" (dict "Context" $)) -}}{{ . | nindent 10 }}{{- end }}
           {{- if $.Values.serviceAccount.create }}
-          serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+          serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
           {{- end }}
           containers:
             - name: cronjob
               command:
                 {{- toYaml $job.command | nindent 16 }}
-              {{- include "django-app.imageConfig"
-                  (dict "Default" $.Values.image "Override" $.Values.cronjobs.image)
+              {{- include "banjo.imageConfig"
+                  (dict "Default" $.Values.image "Override" $defaults.image)
                   | nindent 14
               }}
               resources:
-                {{- include "django-app.resourcesConfig"
-                    (dict "Default" $.Values.cronjobs.defaultResources "Override" $job.resources)
+                {{- include "banjo.resourcesConfig"
+                    (dict "Default" $defaults.resources "Override" $job.resources)
                     | nindent 16
                 }}
               envFrom:
-                {{- include "django-app.envFromTemplate" $ | nindent 16 }}
+                {{- include "banjo.envFromTemplate" $ | nindent 16 }}
               env:
-                {{- include "django-app.envTemplate"
+                {{- include "banjo.envTemplate"
                     (dict "Values" $.Values "Type" "cronjob" )
                     | nindent 16
                 }}
-              {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 14 }}{{- end }}
+                {{- include "banjo.extraEnvBlock"
+                    (dict "Default" $defaults "Override" $job "Context" $)
+                    | nindent 16
+                }}
+              {{- with (include "banjo.appDefaultVolumeMounts" (dict "Context" $)) -}}{{ . | nindent 14 }}{{- end }}
 
 {{- end }}
 

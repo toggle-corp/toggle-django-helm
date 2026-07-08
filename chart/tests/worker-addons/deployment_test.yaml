@@ -1,11 +1,21 @@
-suite: Worker Deployment tests
+suite: Worker Addons Deployment tests
 templates:
-  - templates/worker/deployment.yaml
+  - templates/worker-addons/deployment.yaml
   - templates/config/secret.yaml
   - templates/config/configmap.yaml
 tests:
-  - it: should render one Deployment per enabled queue
-    template: templates/worker/deployment.yaml
+  - it: should not render anything when worker.addons is empty
+    template: templates/worker-addons/deployment.yaml
+    set:
+      worker:
+        enabled: true
+        addons: {}
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should render Deployment per enabled addon (dict form)
+    template: templates/worker-addons/deployment.yaml
     set:
       environment: TEST
       image:
@@ -13,34 +23,32 @@ tests:
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
-          commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
-          heavy:
+            command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
+          flower:
             enabled: true
-            celeryArgs: ["-Q", "heavy"]
-          disabled-queue:
+            command: ["celery", "-A", "myapp", "flower"]
+          disabled-addon:
             enabled: false
-            celeryArgs: ["-Q", "disabled"]
+            command: ["something"]
     asserts:
       - hasDocuments:
           count: 2
 
-  - it: should carry argocd sync-wave 30 on the queue Deployment by default
-    template: templates/worker/deployment.yaml
+  - it: should carry argocd sync-wave 30 on the addon Deployment by default
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
     asserts:
       - equal:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
@@ -49,18 +57,18 @@ tests:
           path: metadata.annotations["reloader.stakater.com/auto"]
           value: "true"
 
-  - it: should let per-queue deploymentAnnotations override queueDefaults sync-wave
-    template: templates/worker/deployment.yaml
+  - it: should let per-addon deploymentAnnotations override addonDefaults sync-wave
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
             deploymentAnnotations:
               argocd.argoproj.io/sync-wave: "99"
     asserts:
@@ -71,11 +79,11 @@ tests:
           path: metadata.annotations["reloader.stakater.com/auto"]
           value: "true"
 
-  - it: should render Deployment with queue label, command prefix + celeryArgs and image
-    template: templates/worker/deployment.yaml
+  - it: should render addon with command, image, and addon label
+    template: templates/worker-addons/deployment.yaml
     documentSelector:
-      path: metadata.labels.queue
-      value: default
+      path: metadata.labels.addon
+      value: beat
     set:
       environment: TEST
       image:
@@ -83,197 +91,135 @@ tests:
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
-          commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery", "--concurrency", "4"]
+            command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
     asserts:
       - isKind:
           of: Deployment
-      - isAPIVersion:
-          of: apps/v1
       - equal:
           path: metadata.labels.component
-          value: worker
+          value: worker-addon
       - equal:
-          path: metadata.labels.queue
-          value: default
+          path: metadata.labels.addon
+          value: beat
       - equal:
           path: metadata.labels.environment
           value: TEST
       - equal:
           path: spec.template.spec.containers[0].command
-          value:
-            - celery
-            - -A
-            - myapp
-            - worker
-            - -l
-            - INFO
-            - -Q
-            - celery
-            - --concurrency
-            - "4"
+          value: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
       - equal:
           path: spec.template.spec.containers[0].image
           value: "ghcr.io/example/app:v1"
       - equal:
           path: spec.revisionHistoryLimit
           value: 1
+      - notExists:
+          path: spec.replicas
 
-  - it: should use queueDefaults.resources when queue resources not set
-    template: templates/worker/deployment.yaml
+  - it: should render replicas when addon.replicaCount is set
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
-          resources:
-            requests:
-              cpu: "1"
-              memory: 1Gi
-            limits:
-              cpu: "1"
-              memory: 2Gi
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
-            resources: {}
+            command: ["celery"]
+            replicaCount: 1
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].resources.requests.cpu
-          value: "1"
-      - equal:
-          path: spec.template.spec.containers[0].resources.limits.memory
-          value: 2Gi
+          path: spec.replicas
+          value: 1
 
-  - it: should override image with worker.image
-    template: templates/worker/deployment.yaml
+  - it: should render equivalent addon from array form
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        image:
-          name: ghcr.io/example/worker
-          tag: v2
-        queues:
-          default:
+        addons:
+          - name: exporter
             enabled: true
-            celeryArgs: ["-Q", "celery"]
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].image
-          value: "ghcr.io/example/worker:v2"
-
-  - it: should not render when worker.enabled is false
-    template: templates/worker/deployment.yaml
-    set:
-      worker:
-        enabled: false
-        queues:
-          default:
-            enabled: true
-            celeryArgs: ["-Q", "celery"]
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should not render when no queues are enabled
-    template: templates/worker/deployment.yaml
-    set:
-      image:
-        name: ghcr.io/example/app
-        tag: v1
-      worker:
-        enabled: true
-        queues:
-          default:
-            enabled: false
-            celeryArgs: ["-Q", "celery"]
-    asserts:
-      - hasDocuments:
-          count: 0
-
-  - it: should render equivalent queue from dict form and array form
-    template: templates/worker/deployment.yaml
-    set:
-      image:
-        name: ghcr.io/example/app
-        tag: v1
-      worker:
-        enabled: true
-        queueDefaults:
-          commandPrefix: ["celery", "-A", "myapp", "worker"]
-        queues:
-          - name: priority
-            enabled: true
-            celeryArgs: ["-Q", "priority"]
+            command: ["celery-exporter"]
     asserts:
       - hasDocuments:
           count: 1
       - equal:
-          path: metadata.labels.queue
-          value: priority
+          path: metadata.labels.addon
+          value: exporter
       - equal:
           path: spec.template.spec.containers[0].command
-          value: ["celery", "-A", "myapp", "worker", "-Q", "priority"]
+          value: ["celery-exporter"]
 
-  - it: should merge queueDefaults.extraEnv with per-queue extraEnv (queue wins)
-    template: templates/worker/deployment.yaml
+  - it: should merge addonDefaults.extraEnv with per-addon extraEnv
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
-          commandPrefix: ["celery", "-A", "myapp", "worker"]
+        addonDefaults:
           extraEnv:
-            SHARED_KEY: "from-defaults"
-            LOG_LEVEL: "INFO"
-        queues:
-          priority:
+            SHARED: "from-defaults"
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "priority"]
+            command: ["celery"]
             extraEnv:
-              LOG_LEVEL: "DEBUG"
-              QUEUE_KEY: "from-queue"
+              ADDON_KEY: "from-addon"
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: SHARED_KEY
+            name: SHARED
             value: "from-defaults"
       - contains:
           path: spec.template.spec.containers[0].env
           content:
-            name: LOG_LEVEL
-            value: "DEBUG"
-      - contains:
-          path: spec.template.spec.containers[0].env
-          content:
-            name: QUEUE_KEY
-            value: "from-queue"
+            name: ADDON_KEY
+            value: "from-addon"
 
-  - it: should render per-queue volume + mount (dict form, name injected)
-    template: templates/worker/deployment.yaml
+  - it: should ship default resources with memory limit but no CPU limit
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
+    asserts:
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+      - isNotNullOrEmpty:
+          path: spec.template.spec.containers[0].resources.limits.memory
+      - notExists:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+
+  - it: should render per-addon volume + mount (dict form, name injected)
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
             volumes:
               celery-heartbeat:
                 emptyDir:
@@ -296,8 +242,8 @@ tests:
             name: celery-heartbeat
             mountPath: /var/run/celery
 
-  - it: should concatenate per-queue volumes after global podVolumes
-    template: templates/worker/deployment.yaml
+  - it: should concatenate per-addon volumes after global podVolumes
+    template: templates/worker-addons/deployment.yaml
     set:
       podVolumes:
         - name: global-vol
@@ -307,10 +253,10 @@ tests:
         tag: v1
       worker:
         enabled: true
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
             volumes:
               celery-heartbeat:
                 emptyDir:
@@ -323,15 +269,15 @@ tests:
           path: spec.template.spec.volumes[1].name
           value: celery-heartbeat
 
-  - it: should merge queueDefaults volumes with per-queue volumes (queue wins by name)
-    template: templates/worker/deployment.yaml
+  - it: should merge addonDefaults volumes with per-addon volumes (addon wins by name)
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
+        addonDefaults:
           volumes:
             celery-heartbeat:
               emptyDir:
@@ -339,10 +285,10 @@ tests:
                 sizeLimit: 1Mi
             shared-cache:
               emptyDir: {}
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
             volumes:
               celery-heartbeat:
                 emptyDir:
@@ -361,22 +307,22 @@ tests:
               medium: Memory
               sizeLimit: 8Mi
 
-  - it: should reset volumes when per-queue volumes given as array (ignores defaults)
-    template: templates/worker/deployment.yaml
+  - it: should reset volumes when per-addon volumes given as array (ignores defaults)
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
+        addonDefaults:
           volumes:
             from-defaults:
               emptyDir: {}
-        queues:
-          - name: priority
+        addons:
+          - name: exporter
             enabled: true
-            celeryArgs: ["-Q", "priority"]
+            command: ["celery-exporter"]
             volumes:
               - name: only-this
                 emptyDir: {}
@@ -393,7 +339,7 @@ tests:
             emptyDir: {}
 
   - it: should not render volumes/volumeMounts when none set and no podVolumes
-    template: templates/worker/deployment.yaml
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
@@ -402,131 +348,116 @@ tests:
         create: false
       worker:
         enabled: true
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
     asserts:
       - notExists:
           path: spec.template.spec.volumes
       - notExists:
           path: spec.template.spec.containers[0].volumeMounts
 
-  - it: should render probes from queueDefaults.probes when enabled
-    template: templates/worker/deployment.yaml
+  - it: should render probes from per-addon probes when enabled
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
-          probes:
+        addons:
+          beat:
             enabled: true
-            liveness:
-              exec:
-                command:
-                  - banjo-celery-probe
-                  - --heartbeat-file
-                  - /tmp/celery_worker_heartbeat
-              periodSeconds: 20
-              failureThreshold: 6
-            startup:
-              exec:
-                command:
-                  - banjo-celery-probe
-                  - --heartbeat-file
-                  - /tmp/celery_worker_heartbeat
-              periodSeconds: 5
-              failureThreshold: 30
-        queues:
-          default:
-            enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
+            probes:
+              enabled: true
+              liveness:
+                exec:
+                  command:
+                    - banjo-celery-probe
+                    - --heartbeat-file
+                    - /tmp/celery_beat_heartbeat
+                    - --max-age
+                    - "360"
+                failureThreshold: 3
     asserts:
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.exec.command
           value:
             - banjo-celery-probe
             - --heartbeat-file
-            - /tmp/celery_worker_heartbeat
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
-          value: 6
-      - equal:
-          path: spec.template.spec.containers[0].startupProbe.exec.command
-          value:
-            - banjo-celery-probe
-            - --heartbeat-file
-            - /tmp/celery_worker_heartbeat
-      - notExists:
-          path: spec.template.spec.containers[0].readinessProbe
-
-  - it: should merge queueDefaults.probes with per-queue probes (queue wins per key)
-    template: templates/worker/deployment.yaml
-    set:
-      image:
-        name: ghcr.io/example/app
-        tag: v1
-      worker:
-        enabled: true
-        queueDefaults:
-          probes:
-            enabled: true
-            liveness:
-              exec:
-                command: ["banjo-celery-probe"]
-              periodSeconds: 20
-              failureThreshold: 6
-        queues:
-          default:
-            enabled: true
-            celeryArgs: ["-Q", "celery"]
-            probes:
-              liveness:
-                failureThreshold: 3
-    asserts:
+            - /tmp/celery_beat_heartbeat
+            - --max-age
+            - "360"
       - equal:
           path: spec.template.spec.containers[0].livenessProbe.failureThreshold
           value: 3
-      - equal:
-          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
-          value: 20
 
-  - it: should not render probes when probes.enabled is false
-    template: templates/worker/deployment.yaml
+  - it: should merge addonDefaults.probes with per-addon probes (addon wins per key)
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
+        addonDefaults:
           probes:
-            enabled: false
+            enabled: true
             liveness:
               exec:
                 command: ["banjo-celery-probe"]
-        queues:
-          default:
+              periodSeconds: 60
+              failureThreshold: 3
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
+            probes:
+              liveness:
+                failureThreshold: 5
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.failureThreshold
+          value: 5
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.periodSeconds
+          value: 60
+
+  - it: should not render probes when probes.enabled is false
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            probes:
+              enabled: false
+              liveness:
+                exec:
+                  command: ["banjo-celery-probe"]
     asserts:
       - notExists:
           path: spec.template.spec.containers[0].livenessProbe
 
   - it: should not render probes when probes unset
-    template: templates/worker/deployment.yaml
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
     asserts:
       - notExists:
           path: spec.template.spec.containers[0].livenessProbe
@@ -535,48 +466,18 @@ tests:
       - notExists:
           path: spec.template.spec.containers[0].startupProbe
 
-  - it: should apply queueDefaults.resources with per-queue override (no CPU limit by default)
-    template: templates/worker/deployment.yaml
+  - it: should render strategy when set on the addon
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
-          commandPrefix: ["celery"]
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "256Mi"
-            limits:
-              memory: "512Mi"
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
-    asserts:
-      - equal:
-          path: spec.template.spec.containers[0].resources.requests.cpu
-          value: "100m"
-      - equal:
-          path: spec.template.spec.containers[0].resources.limits.memory
-          value: "512Mi"
-      - notExists:
-          path: spec.template.spec.containers[0].resources.limits.cpu
-
-  - it: should render strategy when set on the queue
-    template: templates/worker/deployment.yaml
-    set:
-      image:
-        name: ghcr.io/example/app
-        tag: v1
-      worker:
-        enabled: true
-        queues:
-          default:
-            enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
             strategy:
               type: Recreate
     asserts:
@@ -585,24 +486,24 @@ tests:
           value:
             type: Recreate
 
-  - it: should let per-queue strategy override queueDefaults strategy wholesale
-    template: templates/worker/deployment.yaml
+  - it: should let per-addon strategy override addonDefaults strategy wholesale
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
+        addonDefaults:
           strategy:
             type: RollingUpdate
             rollingUpdate:
               maxSurge: 1
               maxUnavailable: 0
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
             strategy:
               type: Recreate
     asserts:
@@ -614,90 +515,103 @@ tests:
           path: spec.strategy.rollingUpdate
 
   - it: should not render strategy when unset
-    template: templates/worker/deployment.yaml
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
     asserts:
       - notExists:
           path: spec.strategy
 
-  - it: should render terminationGracePeriodSeconds when set on the queue
-    template: templates/worker/deployment.yaml
+  - it: should render terminationGracePeriodSeconds when set on the addon
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
             terminationGracePeriodSeconds: 120
     asserts:
       - equal:
           path: spec.template.spec.terminationGracePeriodSeconds
           value: 120
 
-  - it: should let per-queue terminationGracePeriodSeconds override queueDefaults
-    template: templates/worker/deployment.yaml
+  - it: should let per-addon terminationGracePeriodSeconds override addonDefaults
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
+        addonDefaults:
           terminationGracePeriodSeconds: 60
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
             terminationGracePeriodSeconds: 300
     asserts:
       - equal:
           path: spec.template.spec.terminationGracePeriodSeconds
           value: 300
 
-  - it: should fall back to queueDefaults.terminationGracePeriodSeconds when queue unset
-    template: templates/worker/deployment.yaml
+  - it: should fall back to addonDefaults.terminationGracePeriodSeconds when addon unset
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queueDefaults:
+        addonDefaults:
           terminationGracePeriodSeconds: 90
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
     asserts:
       - equal:
           path: spec.template.spec.terminationGracePeriodSeconds
           value: 90
 
   - it: should not render terminationGracePeriodSeconds when unset
-    template: templates/worker/deployment.yaml
+    template: templates/worker-addons/deployment.yaml
     set:
       image:
         name: ghcr.io/example/app
         tag: v1
       worker:
         enabled: true
-        queues:
-          default:
+        addons:
+          beat:
             enabled: true
-            celeryArgs: ["-Q", "celery"]
+            command: ["celery"]
     asserts:
       - notExists:
           path: spec.template.spec.terminationGracePeriodSeconds
+
+  - it: should not render when worker.enabled is false
+    template: templates/worker-addons/deployment.yaml
+    set:
+      worker:
+        enabled: false
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - hasDocuments:
+          count: 0

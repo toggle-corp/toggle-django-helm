@@ -3,10 +3,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "django-app.fullname" . }}-api
-  {{- with (include "django-app.appDefaultDeploymentAnnotations" $) -}}{{ . | nindent 2 }}{{- end }}
+  name: {{ template "banjo.fullname" . }}-api
+  {{- with (include "banjo.appDefaultDeploymentAnnotations" (dict "Annotations" .Values.api.deploymentAnnotations)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
-    app: {{ include "django-app.fullname" . }}
+    app: {{ include "banjo.fullname" . }}
     component: api
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
@@ -14,45 +14,80 @@ spec:
   {{- if not (eq .Values.api.replicaCount nil) }}
   replicas: {{ .Values.api.replicaCount }}
   {{- end }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   selector:
     matchLabels:
-      app: {{ include "django-app.fullname" . }}
+      app: {{ include "banjo.fullname" . }}
       component: api
   template:
     metadata:
       annotations:
-        {{- include "django-app.appDefaultAnnotations" $ | nindent 8 }}
+        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
+        {{- with .Values.api.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
-        app: {{ include "django-app.fullname" . }}
+        app: {{ include "banjo.fullname" . }}
         component: api
-        {{- with (include "django-app.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
+        {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
-      {{- with (include "django-app.appDefaultVolumes" $) -}}{{ . | nindent 6 }}{{- end }}
+      {{- with (include "banjo.appDefaultVolumes" (dict "Context" $)) -}}{{ . | nindent 6 }}{{- end }}
       {{- if .Values.serviceAccount.create }}
-      serviceAccountName: {{ include "django-app.serviceAccountName" $ }}
+      serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
+      {{- end }}
+      {{- $preStop := int (default 0 (dig "lifecycle" "preStopSleepSeconds" 0 .Values.api)) }}
+      {{- if .Values.api.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ .Values.api.terminationGracePeriodSeconds }}
+      {{- else if gt $preStop 0 }}
+      terminationGracePeriodSeconds: {{ add 30 $preStop }}
       {{- end }}
       containers:
         - name: api
-          {{- include "django-app.imageConfig"
+          {{- include "banjo.imageConfig"
               (dict "Default" $.Values.image "Override" $.Values.api.image)
               | nindent 10
           }}
+          {{- with .Values.api.command }}
           command:
-            {{- toYaml .Values.api.command | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.api.containerPort }}
               protocol: TCP
-          # TODO: livenessProbe
+          {{- if .Values.api.probes.enabled }}
+          {{- with .Values.api.probes.liveness }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.probes.readiness }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.api.probes.startup }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           envFrom:
-            {{- include "django-app.envFromTemplate" $ | nindent 12 }}
+            {{- include "banjo.envFromTemplate" $ | nindent 12 }}
           env:
-            {{- include "django-app.envTemplate"
+            {{- include "banjo.envTemplate"
               (dict "Values" $.Values "Type" "web" )
               | nindent 12
           }}
-          {{- with (include "django-app.appDefaultVolumeMounts" $) -}}{{ . | nindent 10 }}{{- end }}
+            {{- include "banjo.extraEnvBlock"
+              (dict "Default" (dict) "Override" .Values.api "Context" $)
+              | nindent 12
+          }}
+          {{- if gt $preStop 0 }}
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: {{ $preStop }}
+          {{- end }}
+          {{- with (include "banjo.appDefaultVolumeMounts" (dict "Context" $)) -}}{{ . | nindent 10 }}{{- end }}
 
 {{- end }}

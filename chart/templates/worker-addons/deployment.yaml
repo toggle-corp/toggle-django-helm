@@ -1,40 +1,40 @@
 {{- if .Values.worker.enabled }}
 
-{{- $defaults := default dict .Values.worker.queueDefaults -}}
-{{- $queues := list -}}
-{{- if kindIs "map" .Values.worker.queues -}}
-  {{- range $name, $cfg := .Values.worker.queues -}}
-    {{- $queues = append $queues (merge (dict "name" $name) (default dict $cfg)) -}}
+{{- $defaults := default dict .Values.worker.addonDefaults -}}
+{{- $addons := list -}}
+{{- if kindIs "map" .Values.worker.addons -}}
+  {{- range $name, $cfg := .Values.worker.addons -}}
+    {{- $addons = append $addons (merge (dict "name" $name) (default dict $cfg)) -}}
   {{- end -}}
-{{- else if kindIs "slice" .Values.worker.queues -}}
-  {{- $queues = .Values.worker.queues -}}
+{{- else if kindIs "slice" .Values.worker.addons -}}
+  {{- $addons = .Values.worker.addons -}}
 {{- end -}}
 
-{{- range $config := $queues }}
-{{- if $config.enabled }}
-{{- $queue_name := $config.name }}
-{{- $extraVolumes := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumes "Override" $config.volumes)) }}
-{{- $extraVolumeMounts := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumeMounts "Override" $config.volumeMounts)) }}
+{{- range $addon := $addons }}
+{{- if $addon.enabled }}
+{{- $addon_name := $addon.name }}
+{{- $extraVolumes := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumes "Override" $addon.volumes)) }}
+{{- $extraVolumeMounts := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumeMounts "Override" $addon.volumeMounts)) }}
 
 ---
-# Queue: {{ $queue_name }}
+# Addon: {{ $addon_name }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "banjo.fullname" $ }}-worker-{{ $queue_name }}
-  {{- $deployAnnotations := merge (deepCopy (default (dict) $config.deploymentAnnotations)) (default (dict) $defaults.deploymentAnnotations) }}
+  name: {{ template "banjo.fullname" $ }}-worker-{{ $addon_name }}
+  {{- $deployAnnotations := merge (deepCopy (default (dict) $addon.deploymentAnnotations)) (default (dict) $defaults.deploymentAnnotations) }}
   {{- with (include "banjo.appDefaultDeploymentAnnotations" (dict "Annotations" $deployAnnotations)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" $ }}
-    component: worker
-    queue: {{ $queue_name }}
+    component: worker-addon
+    addon: {{ $addon_name }}
     environment: {{ $.Values.environment }}
     release: {{ $.Release.Name }}
 spec:
-  {{- if not (eq $config.replicaCount nil) }}
-  replicas: {{ $config.replicaCount }}
+  {{- if not (eq $addon.replicaCount nil) }}
+  replicas: {{ $addon.replicaCount }}
   {{- end }}
-  {{- $strategy := $config.strategy | default $defaults.strategy -}}
+  {{- $strategy := $addon.strategy | default $defaults.strategy -}}
   {{- with $strategy }}
   strategy:
     {{- toYaml . | nindent 4 }}
@@ -43,8 +43,8 @@ spec:
   selector:
     matchLabels:
       app: {{ include "banjo.fullname" $ }}
-      component: worker
-      queue: {{ $queue_name }}
+      component: worker-addon
+      addon: {{ $addon_name }}
   template:
     metadata:
       annotations:
@@ -52,36 +52,45 @@ spec:
         {{- with $defaults.annotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- with $config.annotations }}
+        {{- with $addon.annotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:
         app: {{ include "banjo.fullname" $ }}
-        component: worker
-        queue: {{ $queue_name }}
+        component: worker-addon
+        addon: {{ $addon_name }}
         {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
     spec:
       {{- with (include "banjo.appDefaultVolumes" (dict "Context" $ "Extra" $extraVolumes)) -}}{{ . | nindent 6 }}{{- end }}
       {{- if $.Values.serviceAccount.create }}
       serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
-      {{- $grace := $config.terminationGracePeriodSeconds | default $defaults.terminationGracePeriodSeconds -}}
+      {{- $grace := $addon.terminationGracePeriodSeconds | default $defaults.terminationGracePeriodSeconds -}}
       {{- with $grace }}
       terminationGracePeriodSeconds: {{ . }}
       {{- end }}
       containers:
-        - name: worker
-          {{- $command := concat (default (list) $defaults.commandPrefix) (default (list) $config.celeryArgs) }}
-          command:
-            {{- toYaml $command | nindent 12 }}
+        - name: {{ $addon_name }}
           {{- include "banjo.imageConfig"
               (dict "Default" $.Values.image "Override" $.Values.worker.image)
               | nindent 10
           }}
-          {{- with (include "banjo.probesConfig" (dict "Default" $defaults.probes "Override" $config.probes)) -}}{{ . | nindent 10 }}{{- end }}
+          {{- with $addon.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with $addon.service }}
+          {{- if .enabled }}
+          ports:
+            - name: http
+              containerPort: {{ .targetPort }}
+              protocol: TCP
+          {{- end }}
+          {{- end }}
+          {{- with (include "banjo.probesConfig" (dict "Default" $defaults.probes "Override" $addon.probes)) -}}{{ . | nindent 10 }}{{- end }}
           resources:
             {{- include "banjo.resourcesConfig"
-                (dict "Default" $defaults.resources "Override" $config.resources)
+                (dict "Default" $defaults.resources "Override" $addon.resources)
                 | nindent 12
             }}
           envFrom:
@@ -92,7 +101,7 @@ spec:
                 | nindent 12
             }}
             {{- include "banjo.extraEnvBlock"
-                (dict "Default" $defaults "Override" $config "Context" $)
+                (dict "Default" $defaults "Override" $addon "Context" $)
                 | nindent 12
             }}
           {{- with (include "banjo.appDefaultVolumeMounts" (dict "Context" $ "Extra" $extraVolumeMounts)) -}}{{ . | nindent 10 }}{{- end }}

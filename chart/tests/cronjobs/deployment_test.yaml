@@ -10,13 +10,14 @@ tests:
         tag: v1
       cronjobs:
         enabled: true
-        defaultResources:
-          requests:
-            cpu: "1"
-            memory: 1Gi
-          limits:
-            cpu: "1"
-            memory: 2Gi
+        defaults:
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
         jobs:
           dummy-01:
             enabled: true
@@ -140,3 +141,166 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: should ship history limits from defaults
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy-01:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - equal:
+          path: spec.successfulJobsHistoryLimit
+          value: 1
+      - equal:
+          path: spec.failedJobsHistoryLimit
+          value: 1
+
+  - it: should override history limits per-job
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy-01:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            successfulJobsHistoryLimit: 5
+            failedJobsHistoryLimit: 3
+    asserts:
+      - equal:
+          path: spec.successfulJobsHistoryLimit
+          value: 5
+      - equal:
+          path: spec.failedJobsHistoryLimit
+          value: 3
+
+  - it: should ship the 7-day default ttlSecondsAfterFinished from chart values
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy-01:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+          value: 604800
+
+  - it: should override ttlSecondsAfterFinished per-job
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy-01:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            ttlSecondsAfterFinished: 3600
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+          value: 3600
+
+  - it: should disable ttlSecondsAfterFinished when defaults set to null
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        defaults:
+          ttlSecondsAfterFinished: null
+        jobs:
+          dummy-01:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - notExists:
+          path: spec.jobTemplate.spec.ttlSecondsAfterFinished
+
+  - it: should render equivalent CronJob from array form
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          - name: array-form-job
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py", "run"]
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.labels.jobName
+          value: array-form-job
+
+  - it: should merge cronjobs.defaults.extraEnv with per-job extraEnv
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        defaults:
+          extraEnv:
+            SHARED: "from-defaults"
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            extraEnv:
+              JOB_KEY: "from-job"
+    asserts:
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content:
+            name: SHARED
+            value: "from-defaults"
+      - contains:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env
+          content:
+            name: JOB_KEY
+            value: "from-job"
+
+  - it: should ship resources with memory limit but no CPU limit
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - isNotNullOrEmpty:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources.requests.cpu
+      - isNotNullOrEmpty:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources.limits.memory
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.containers[0].resources.limits.cpu

@@ -1,0 +1,152 @@
+{{- if .Values.hooks.enabled }}
+
+{{- $defaults := default dict .Values.hooks.defaults -}}
+{{- $jobs := list -}}
+{{- if kindIs "map" .Values.hooks.jobs -}}
+  {{- range $name, $cfg := .Values.hooks.jobs -}}
+    {{- $jobs = append $jobs (merge (dict "name" $name) (default dict $cfg)) -}}
+  {{- end -}}
+{{- else if kindIs "slice" .Values.hooks.jobs -}}
+  {{- $jobs = .Values.hooks.jobs -}}
+{{- end -}}
+
+{{- range $job := $jobs }}
+{{- if $job.enabled }}
+{{- $jobName := $job.name }}
+{{- $ann := default (dict) $job.annotations }}
+{{- $files := default (dict) $job.files }}
+{{- $mountPath := default "/etc/hook-files" $job.filesMountPath }}
+{{- $cmName := printf "%s-%s-files" (include "banjo.fullname" $) $jobName }}
+
+{{- /* --- render-time validations: fail here, before emitting any doc --- */ -}}
+{{- if not (regexMatch `^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$` $jobName) }}
+{{- fail (printf "hooks.jobs: job name %q must be a lowercase RFC 1123 subdomain (letters, digits, '-', '.')" $jobName) }}
+{{- end }}
+{{- if $files }}
+{{- if not (hasPrefix "/" $mountPath) }}
+{{- fail (printf "hooks.jobs.%s.filesMountPath %q must be an absolute path (start with '/')" $jobName $mountPath) }}
+{{- end }}
+{{- if gt (len $cmName) 253 }}
+{{- fail (printf "hooks.jobs.%s: files ConfigMap name %q exceeds the 253-character limit" $jobName $cmName) }}
+{{- end }}
+{{- range $key, $_ := $files }}
+{{- if not (regexMatch `^[-._a-zA-Z0-9]+$` $key) }}
+{{- fail (printf "hooks.jobs.%s.files: key %q is invalid (a ConfigMap key allows only letters, digits, '-', '_', '.')" $jobName $key) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- /* Build the per-job files volume/mount (mounted only into this hook's pod). */ -}}
+{{- $vols := list }}
+{{- $volMounts := list }}
+{{- if $files }}
+{{- $vols = list (dict "name" "hook-files" "configMap" (dict "name" $cmName)) }}
+{{- $volMounts = list (dict "name" "hook-files" "mountPath" $mountPath "readOnly" true) }}
+{{- end }}
+
+{{- if $files }}
+---
+# Hook files ConfigMap for: {{ $jobName }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $cmName }}
+  annotations:
+    {{- with (get $ann "argocd.argoproj.io/hook") }}
+    argocd.argoproj.io/hook: {{ . | quote }}
+    {{- end }}
+    {{- with (get $ann "argocd.argoproj.io/sync-wave") }}
+    argocd.argoproj.io/sync-wave: {{ . | quote }}
+    {{- end }}
+    # Refresh content on every sync and clean up before the next run.
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  labels:
+    app: {{ include "banjo.fullname" $ }}
+    component: hook
+    hookName: {{ $jobName }}
+    environment: {{ $.Values.environment }}
+    release: {{ $.Release.Name }}
+data:
+  {{- range $key, $value := $files }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}
+{{- end }}
+
+---
+# Hook: {{ $jobName }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  {{- if $job.useGenerateName }}
+  generateName: {{ template "banjo.fullname" $ }}-{{ $jobName }}-
+  {{- else }}
+  name: {{ template "banjo.fullname" $ }}-{{ $jobName }}
+  {{- end }}
+  {{- with $job.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    app: {{ include "banjo.fullname" $ }}
+    component: hook
+    hookName: {{ $jobName }}
+    environment: {{ $.Values.environment }}
+    release: {{ $.Release.Name }}
+spec:
+  {{- with $job.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ . }}
+  {{- end }}
+  {{- with $job.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
+  template:
+    metadata:
+      annotations:
+        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
+        {{- with $defaults.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        app: {{ include "banjo.fullname" $ }}
+        component: hook
+        hookName: {{ $jobName }}
+        {{- with (include "banjo.appDefaultLabels" $) -}}{{ . | nindent 8 }}{{- end }}
+    spec:
+      restartPolicy: "Never"
+      {{- with (include "banjo.appDefaultVolumes" (dict "Context" $ "Extra" $vols)) -}}{{ . | nindent 6 }}{{- end }}
+      {{- if $.Values.serviceAccount.create }}
+      serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
+      {{- end }}
+      containers:
+        - name: {{ $jobName }}
+          {{- include "banjo.imageConfig"
+              (dict "Default" $.Values.image "Override" $defaults.image)
+              | nindent 10
+          }}
+          command: {{ toYaml $job.command | trim | nindent 12 }}
+          {{- with $job.args }}
+          args: {{ toYaml . | trim | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- include "banjo.resourcesConfig"
+                (dict "Default" $defaults.resources "Override" $job.resources)
+                | nindent 12
+            }}
+          envFrom:
+            {{- include "banjo.envFromTemplate" $ | nindent 12 }}
+          env:
+            {{- include "banjo.envTemplate"
+                (dict "Values" $.Values "Type" "hook" )
+                | nindent 12
+            }}
+            {{- include "banjo.extraEnvBlock"
+                (dict "Default" $defaults "Override" $job "Context" $)
+                | nindent 12
+            }}
+          {{- with (include "banjo.appDefaultVolumeMounts" (dict "Context" $ "Extra" $volMounts)) -}}{{ . | nindent 10 }}{{- end }}
+
+{{- end }}
+
+{{- end }}
+
+{{- end }}

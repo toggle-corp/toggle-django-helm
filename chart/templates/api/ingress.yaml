@@ -1,39 +1,41 @@
-{{- if .Values.ingress.enabled }}
+{{- if .Values.api.ingress.enabled }}
 
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ template "django-app.fullname" . }}-api
+  name: {{ template "banjo.fullname" . }}-api
   labels:
-    app: {{ include "django-app.fullname" . }}
+    app: {{ include "banjo.fullname" . }}
     component: api
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
-    {{- with .Values.ingress.labels }}
+    {{- with .Values.api.ingress.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
-  {{- with .Values.ingress.annotations }}
+  {{- with .Values.api.ingress.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  ingressClassName: {{ required "ingress.className" .Values.ingress.className | quote }}
+  {{- with .Values.api.ingress.className }}
+  ingressClassName: {{ . | quote }}
+  {{- end }}
   rules:
-    - host: {{ required "ingress.host" .Values.ingress.host | quote }}
+    - host: {{ required "api.ingress.host" .Values.api.ingress.host | quote }}
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: {{ template "django-app.fullname" . }}-api
+                name: {{ template "banjo.fullname" . }}-api
                 port:
                   number: 80
 
-  {{- if .Values.ingress.tls.enabled }}
+  {{- if .Values.api.ingress.tls.enabled }}
   tls:
-    - secretName: {{ required "ingress.tls.secretName" .Values.ingress.tls.secretName }}
+    - secretName: {{ required "api.ingress.tls.secretName" .Values.api.ingress.tls.secretName }}
       hosts:
-        - {{ .Values.ingress.host | quote }}
+        - {{ .Values.api.ingress.host | quote }}
   {{- end }}
 
 {{- end }}

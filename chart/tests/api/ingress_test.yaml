@@ -5,10 +5,11 @@ tests:
   - it: should render Ingress with host and ingressClassName
     set:
       environment: TEST
-      ingress:
-        enabled: true
-        host: myapp.example.com
-        className: nginx
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          className: nginx
     asserts:
       - isKind:
           of: Ingress
@@ -37,13 +38,14 @@ tests:
 
   - it: should render TLS block when ingress.tls.enabled is true
     set:
-      ingress:
-        enabled: true
-        host: myapp.example.com
-        className: nginx
-        tls:
+      api:
+        ingress:
           enabled: true
-          secretName: my-tls-secret
+          host: myapp.example.com
+          className: nginx
+          tls:
+            enabled: true
+            secretName: my-tls-secret
     asserts:
       - equal:
           path: spec.tls[0].secretName
@@ -54,14 +56,15 @@ tests:
 
   - it: should propagate ingress annotations and labels
     set:
-      ingress:
-        enabled: true
-        host: myapp.example.com
-        className: nginx
-        annotations:
-          nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-        labels:
-          team: platform
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+          labels:
+            team: platform
     asserts:
       - equal:
           path: metadata.annotations["nginx.ingress.kubernetes.io/proxy-body-size"]
@@ -70,10 +73,62 @@ tests:
           path: metadata.labels.team
           value: platform
 
+  - it: should carry argocd sync-wave 30 by default via api.ingress.annotations
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "30"
+
+  # helm-unittest `set:` REPLACES the api.ingress.annotations map wholesale (no
+  # deep merge), so overriding the wave here drops the default map entirely —
+  # only the user-supplied key remains. That's expected.
+  - it: should let api.ingress.annotations override the sync-wave wholesale
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          annotations:
+            argocd.argoproj.io/sync-wave: "99"
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "99"
+
   - it: should not render when ingress.enabled is false
     set:
-      ingress:
-        enabled: false
+      api:
+        ingress:
+          enabled: false
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: should omit ingressClassName when className is unset
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+    asserts:
+      - notExists:
+          path: spec.ingressClassName
+      - equal:
+          path: spec.rules[0].host
+          value: myapp.example.com
+
+  - it: should omit ingressClassName when className is empty string
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          className: ""
+    asserts:
+      - notExists:
+          path: spec.ingressClassName

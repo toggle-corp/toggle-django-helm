@@ -1,11 +1,10 @@
-global:
-  security:
-    # XXX: Bitnami changes
-    allowInsecureImages: true
-
 environment: PROD
 
 appTypeEnvName: "DJANGO_APP_TYPE"
+
+# Number of old ReplicaSets retained per Deployment for rollback (k8s default is 10).
+# Applies chart-wide to every Deployment the chart renders.
+revisionHistoryLimit: 1
 
 podLabels: {}
 podAnnotations: {}
@@ -18,127 +17,111 @@ image: {}
   # imagePullPolicy: IfNotPresent
   # imagePullSecrets:
 
-ingress:
-  enabled: false
-  host:
-  className:
-  tls:
-    enabled: false
-    secretName:
-
-redis:
-  enabled: true
-  architecture: standalone
-  fullnameOverride: django-redis
-  # XXX: Bitnami changes
-  image:
-    repository: bitnamilegacy/redis
-  auth:
-    enabled: false
-  master:
-    persistence:
-      enabled: true
-      size: .5Gi
-      storageClass:
-
-postgresql:
-  enabled: false
-  fullnameOverride: "django-postgres"
-  architecture: standalone
-  image:
-    # XXX: Bitnami changes
-    repository: bitnamilegacy/postgresql
-  auth:
-    postgresPassword: ""
-    database: ""
-  primary:
-    persistence:
-      enabled: true
-      storageClass: ""
-      size: 1Gi
-
-# https://artifacthub.io/packages/helm/bitnami/minio
-# extraEnvVars: https://github.com/bitnami/containers/blob/main/bitnami/minio/README.md#environment-variables
-minio:
-  enabled: false
-  disableWebUI: true
-  mode: standalone
-  fullnameOverride: minio
-  # XXX: Bitnami changes
-  image:
-    repository: bitnamilegacy/minio
-  volumePermissions:
-    image:
-      repository: bitnamilegacy/os-shell
-  global:
-    defaultStorageClass:
-  apiIngress:
-    enabled: true
-    ingressClassName:
-    hostname:
-    annotations:
-      nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-  auth:
-    forceNewKeys: True
-    rootUser: minio-user
-    rootPassword:
-  persistence:
-    enabled: true
-    size: 1Gi
-  defaultBuckets: media-data,static-data
-  provisioning:
-    enabled: true
-    resourcesPreset: "nano"
-    cleanupAfterFinished:
-      enabled: true
-    extraCommands:
-      - "mc anonymous set download provisioning/static-data"
-
-rabbitmq:
-  enabled: false
-  fullnameOverride: "django-rabbitmq"
-  # XXX: Bitnami changes
-  image:
-    repository: bitnamilegacy/rabbitmq
-  auth:
-    username: django
-    password:
-    erlangCookie: # Generate using `dd if=/dev/urandom bs=30 count=1 | base64`
-  # XXX: Don't change this (`celery` vhost is used in templates/config/secret.yaml
-  extraConfiguration: |-
-    default_vhost = celery
-    default_permissions.configure = .*
-    default_permissions.read = .*
-    default_permissions.write = .*
-  resources:
-    requests:
-      cpu: "0.1"
-      memory: 1024Mi
-    limits:
-      cpu: "4"
-      memory: 2048Mi
-  persistence:
-    enabled: true
-    size: 2Gi
-    storageClass:
-
 api:
   # Not required if root image are set
   image: {}
-    # name: WORKER-SET-BY-CICD-IMAGE
-    # tag: WORKER-SET-BY-CICD-TAG
+    # name: API-SET-BY-CICD-IMAGE
+    # tag: API-SET-BY-CICD-TAG
     # imagePullPolicy: IfNotPresent
     # imagePullSecrets:
   enabled: true
   containerPort: 80
-  command: ["/code/deploy/run_prod.sh"]
+  ingress:
+    enabled: false
+    host:
+    # Optional. If unset, the cluster's default IngressClass is used.
+    className:
+    # Ingress resource-level annotations (rendered on Ingress.metadata.annotations).
+    # Defaulted to the ArgoCD sync-wave so the ingress comes up with the app
+    # workloads (wave 30); see the `hooks.jobs` wave contract below. Override
+    # to add ingress-controller annotations — note helm `--set` replaces this
+    # map wholesale, so re-include the sync-wave if you override via --set.
+    annotations:
+      argocd.argoproj.io/sync-wave: "30"
+    tls:
+      enabled: false
+      secretName:
+  # Set to your application's entrypoint; empty by default to keep the chart
+  # un-opinionated about Toggle Corp's deploy/run_prod.sh convention.
+  command: []
+  # Resource-level annotations merged onto Deployment.metadata.annotations
+  # (the Deployment object itself, NOT the pod template). Defaulted to the
+  # ArgoCD sync-wave; the reloader annotation is added by the chart. Keys here
+  # win over the reloader default. See the `hooks.jobs` wave contract below.
+  deploymentAnnotations:
+    argocd.argoproj.io/sync-wave: "30"
+  # Per-component annotations merged into the pod template
+  # (spec.template.metadata.annotations), NOT the Deployment resource.
+  annotations: {}
+  # Per-component inline env. tpl-evaluated. Layered on top of the global
+  # env: ConfigMap (envFrom) — item entries override global on key conflict.
+  extraEnv: {}
+  # No replicaCount default — KEDA owns scaling. Set api.replicaCount: N for
+  # a static count or temporary manual bumps.
+  lifecycle:
+    # preStop sleep closes the kube-proxy endpoint-propagation race: SIGTERM
+    # and endpoint removal happen concurrently, so a pod can still receive
+    # new requests after uvicorn stops accepting them. Sleeping before
+    # SIGTERM gives kube-proxy time to drop the pod from Service endpoints.
+    # See: https://learnk8s.io/graceful-shutdown
+    # Set to 0 to disable the hook entirely.
+    # Uses K8s 1.30+ native lifecycle.sleep action (kubeVersion-pinned).
+    preStopSleepSeconds: 8
+  # Effective spec.terminationGracePeriodSeconds = preStopSleepSeconds + 30s
+  # drain budget, unless this is set explicitly (then this value wins).
+  # Leave unset to take the computed default.
+  # terminationGracePeriodSeconds:
+  probes:
+    # Opt-in. Requires the app to expose HTTP health endpoints.
+    # See banjo-utils' HealthCheckMiddleware for the conventional
+    # /healthz/live/ and /healthz/ready/ implementation:
+    # https://github.com/toggle-corp/banjo-utils#health-endpoints
+    #
+    # Passthrough schema: each probe block is rendered verbatim under
+    # the matching k8s Probe field, so any field of corev1.Probe is
+    # configurable here. To turn the whole feature off, set enabled: false.
+    # To disable a single probe, use `--set api.probes.<probe>=null` on the
+    # CLI; Helm deep-merges -f overlays, so writing `startup: {}` or
+    # `startup: null` in a values file does NOT clear the defaults
+    # (helm/helm#9136). Same for switching handler (httpGet -> tcpSocket):
+    # use `--set api.probes.<probe>.httpGet=null` and add the new handler.
+    enabled: false
+    # Liveness — restart on wedge. Conservative: 120s wedge budget
+    # (20s period × 6 failures) tolerates GC pauses without nuking pods.
+    liveness:
+      httpGet:
+        path: /healthz/live/
+        port: http
+      periodSeconds: 20
+      timeoutSeconds: 2
+      failureThreshold: 6
+    # Readiness — pull from Service endpoints on dependency loss.
+    # Aggressive vs liveness: 60s budget (10s × 6). Endpoint flap is cheap.
+    # banjo-utils' /healthz/ready/ is deliberately pod-local (no DB/Redis
+    # probing) to avoid stampeding shared deps on recovery.
+    readiness:
+      httpGet:
+        path: /healthz/ready/
+        port: http
+      periodSeconds: 10
+      timeoutSeconds: 2
+      failureThreshold: 6
+    # Startup — long-tail boot grace before liveness arms. 150s budget
+    # (5s × 30) covers cold Django boot. Mirrors readiness path so the
+    # same banjo-utils endpoint serves both (pod-local check by design).
+    startup:
+      httpGet:
+        path: /healthz/ready/
+        port: http
+      periodSeconds: 5
+      failureThreshold: 30
   resources:
     requests:
-      cpu: "2"
-      memory: 0.5Gi
+      cpu: "100m"
+      memory: "256Mi"
     limits:
-      cpu: "2"
-      memory: 1Gi
+      # No CPU limit — CFS throttling hurts p99 latency without preventing harm.
+      memory: "512Mi"
 
 worker:
   # Not required if root image are set
@@ -148,117 +131,267 @@ worker:
     # imagePullPolicy: IfNotPresent
     # imagePullSecrets:
   enabled: true
-  beat:
-    enabled: false
-    image: {}
-      # name: WORKER-SET-BY-CICD-IMAGE
-      # tag: WORKER-SET-BY-CICD-TAG
-      # imagePullPolicy: IfNotPresent
-      # imagePullSecrets:
-    command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
+  # Defaults applied to each queue worker unless overridden per-queue.
+  queueDefaults:
+    commandPrefix: []
+      # - "celery"
+      # - "-A"
+      # - "myapp"
+      # - "worker"
+      # - "-l"
+      # - "INFO"
+    # Resource-level annotations on the worker Deployment object (NOT the pod
+    # template). Defaulted to the ArgoCD sync-wave; per-queue
+    # deploymentAnnotations win per key. See the `hooks.jobs` wave contract below.
+    deploymentAnnotations:
+      argocd.argoproj.io/sync-wave: "30"
+    # Per-component annotations merged into the pod template
+    # (spec.template.metadata.annotations), NOT the Deployment resource.
+    annotations: {}
+    # Deployment update strategy. Whole-block override (coalesced, NOT merged):
+    # a per-queue strategy replaces this entirely. Singletons (e.g. beat) should
+    # set `{type: Recreate}` to never run two pods during a rollout.
+    strategy: {}
+    # Celery warm-shutdown drain budget on SIGTERM; size to the longest task;
+    # k8s default 30s when unset.
+    # terminationGracePeriodSeconds: 60
+    #
+    # banjo-utils worker liveness/startup probe, shared by every queue. One env
+    # points both the writer (setup_worker_heartbeat bootstep) and the reader
+    # (banjo-celery-probe) at a heartbeat file on a RAM emptyDir — no
+    # --heartbeat-file flag, no disk writes (works with readOnlyRootFilesystem).
+    # See https://github.com/toggle-corp/banjo-utils#celery-worker--beat-health
+    # Disable one probe with `--set ...probes.<probe>=null`; `{}`/`null` in a
+    # -f overlay does NOT clear it (helm/helm#9136). Uncomment to enable:
+    # extraEnv:
+    #   BANJO_CELERY_HEARTBEAT_FILE: /var/run/celery/worker_heartbeat
+    # volumes:
+    #   celery-heartbeat: {emptyDir: {medium: Memory, sizeLimit: 1Mi}}
+    # volumeMounts:
+    #   celery-heartbeat: {mountPath: /var/run/celery}
+    # probes:
+    #   enabled: true
+    #   liveness:    # restart on wedge — 120s budget (20s x 6)
+    #     exec: {command: [banjo-celery-probe]}
+    #     periodSeconds: 20
+    #     timeoutSeconds: 5
+    #     failureThreshold: 6
+    #   startup:     # boot grace — 150s budget (5s x 30)
+    #     exec: {command: [banjo-celery-probe]}
+    #     periodSeconds: 5
+    #     failureThreshold: 30
     resources:
       requests:
-        cpu: "1"
-        memory: 0.5Gi
+        cpu: "100m"
+        memory: "256Mi"
       limits:
-        cpu: "1"
-        memory: 1Gi
-  flower:
-    image: {}
-      # name: WORKER-SET-BY-CICD-IMAGE
-      # tag: WORKER-SET-BY-CICD-TAG
-      # imagePullPolicy: IfNotPresent
-      # imagePullSecrets:
-    enabled: false  # Install flower package first
-    command: ["celery", "-A", "myapp", "flower", "--port=8000"]
+        # No CPU limit by chart convention.
+        memory: "512Mi"
+  # Map of queue name → per-queue spec. Set as a dict to merge with defaults
+  # via -f overlay; set as an array to wholesale reset.
+  # NOTE: Make sure keys are lowercase.
+  # Uncomment a queue and set its -Q; the heartbeat probe is inherited from
+  # queueDefaults above (per-queue keys override the defaults per key).
+  queues: {}
+    # default:
+    #   enabled: true
+    #   # replicaCount: 1     # omit to let KEDA scale; set for static count
+    #   celeryArgs: ["-Q", "celery", "--concurrency", "4", "--max-tasks-per-child", "10"]
+    #   # extraEnv: {}        # merged onto queueDefaults.extraEnv (per-queue wins)
+    #   # annotations: {}
+    #   # resources: {}
+
+  # Defaults applied to each worker addon (beat, flower, exporters, etc.).
+  addonDefaults:
+    extraEnv: {}
+    # Resource-level annotations on the addon Deployment object (NOT the pod
+    # template). Defaulted to the ArgoCD sync-wave; per-addon
+    # deploymentAnnotations win per key. See the `hooks.jobs` wave contract below.
+    deploymentAnnotations:
+      argocd.argoproj.io/sync-wave: "30"
+    # Per-component annotations merged into the pod template
+    # (spec.template.metadata.annotations), NOT the Deployment resource.
+    annotations: {}
+    # Pod volumes / container mounts. Dict to merge by name, array to reset.
+    volumes: {}
+    volumeMounts: {}
+    # Deployment update strategy. Whole-block override (coalesced, NOT merged):
+    # a per-addon strategy replaces this entirely. Singletons (e.g. beat) should
+    # set `{type: Recreate}` to never run two pods during a rollout.
+    strategy: {}
+    # Celery warm-shutdown drain budget on SIGTERM; size to the longest task; k8s default 30s when unset.
+    # terminationGracePeriodSeconds: 60
     resources:
       requests:
-        cpu: "0.1"
-        memory: 0.5Gi
+        cpu: "50m"
+        memory: "128Mi"
       limits:
-        cpu: "1"
-        memory: 1Gi
-  queueDefaultResources:
-    requests:
-      cpu: "1"
-      memory: 1Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  queueCommandPrefix:
-    - "celery"
-    - "-A"
-    - "myapp"
-    - "worker"
-    - "-l"
-    - "INFO"
-  queues:
-    # NOTE: Make sure keys are lowercase
-    default:
-      enabled: true
-      celeryArgs:
-        - "-Q"
-        - "celery"
-        - "--concurrency"
-        - "4"
-        - "--max-tasks-per-child"
-        - "10"
-      resources: {}
-        # requests:
-        #   cpu: "1"
-        #   memory: 1Gi
-        # limits:
-        #   cpu: "1"
-        #   memory: 2Gi
+        memory: "256Mi"
+  # Auxiliary worker processes (beat, flower, celery-exporter, custom singletons).
+  # Each addon is a Deployment; optional Service via service.enabled.
+  # Set as a dict to merge with defaults via -f overlay; set as an array to reset.
+  # Complete copy-paste beat example: uncomment the `beat:` block and set your
+  # app module in `command`. Beat is a singleton (strategy: Recreate) with its
+  # own banjo-celery-probe heartbeat file, distinct from the workers'.
+  addons: {}
+    # beat:
+    #   enabled: true
+    #   command: ["celery", "-A", "myapp", "beat", "-l", "INFO"]
+    #   replicaCount: 1                # beat must stay a singleton
+    #   strategy: {type: Recreate}     # never run two beats during a rollout
+    #   terminationGracePeriodSeconds: 30
+    #   extraEnv:
+    #     BANJO_CELERY_HEARTBEAT_FILE: /var/run/celery/beat_heartbeat
+    #   volumes:
+    #     celery-heartbeat: {emptyDir: {medium: Memory, sizeLimit: 1Mi}}
+    #   volumeMounts:
+    #     celery-heartbeat: {mountPath: /var/run/celery}
+    #   probes:
+    #     enabled: true
+    #     liveness:    # --max-age must exceed beat's persistent-scheduler tick (300s)
+    #       exec: {command: [banjo-celery-probe, --max-age, "360"]}
+    #       periodSeconds: 60
+    #       timeoutSeconds: 5
+    #       failureThreshold: 3
+    #
+    # flower:
+    #   enabled: false
+    #   command: ["celery", "-A", "myapp", "flower", "--port=8000"]
+    #   service:
+    #     enabled: true
+    #     port: 80
+    #     targetPort: 8000
+    #
+    # celery-exporter:
+    #   enabled: false
+    #   command: ["celery-exporter"]
+    #   service:
+    #     enabled: true
+    #     port: 9808
+    #     targetPort: 9808
 
 cronjobs:
   enabled: true
-  image: {}
-    # name: CRONJOB-SET-BY-CICD-IMAGE
-    # tag: CRONJOB-SET-BY-CICD-TAG
-    # imagePullPolicy: IfNotPresent
-    # imagePullSecrets:
-  defaultResources:
-    requests:
-      cpu: "1"
-      memory: 1Gi
-    limits:
-      cpu: "1"
-      memory: 2Gi
-  # NOTE: Application level configuration
+  defaults:
+    image: {}
+      # name: CRONJOB-SET-BY-CICD-IMAGE
+      # tag: CRONJOB-SET-BY-CICD-TAG
+      # imagePullPolicy: IfNotPresent
+      # imagePullSecrets:
+    extraEnv: {}
+    annotations: {}
+    # Default k8s CronJob keeps 3 successful + 1 failed. Tighten by default.
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 1
+    # Age-based GC of finished Jobs (and their pods) via Job TTL controller.
+    # Defaults to 7 days. Set to null here to disable globally and fall back to
+    # the count-based history limits above. (Helm strips null leaves on merge,
+    # so a per-job null inherits this default rather than disabling — disable
+    # globally here, then opt specific jobs back in with a positive override.)
+    ttlSecondsAfterFinished: 604800  # 7 days
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        memory: "512Mi"
+  # NOTE: Application level configuration.
+  # Set as a dict to merge with chart defaults via -f overlay; set as an array to reset.
   jobs: {}
-    # "dummy":
+    # dummy:
     #   schedule: "0 0 * * *"
     #   timeZone: "Asia/Kathmandu"
     #   enabled: false
+    #   extraEnv: {}
+    #   annotations: {}
+    #   # Per-job overrides — fall back to cronjobs.defaults.* when unset.
+    #   successfulJobsHistoryLimit: 1
+    #   failedJobsHistoryLimit: 1
+    #   ttlSecondsAfterFinished: 3600  # positive value overrides the 7-day default
     #   command: ["./manage.py", "run-dummy-command"]
 
-# Not required if root image are set
-argoHook:
+# Hook Jobs (ArgoCD or Helm). Annotations are passed through verbatim;
+# consumer writes either argocd.argoproj.io/* (default) or helm.sh/* — same template.
+hooks:
   enabled: true
-  image: {}
-    # name: WORKER-SET-BY-CICD-IMAGE
-    # tag: WORKER-SET-BY-CICD-TAG
-    # imagePullPolicy: IfNotPresent
-    # imagePullSecrets:
-  resources:
-    requests:
-      cpu: "0.1"
-      memory: 1Gi
-    limits:
-      cpu: "4"
-      memory: 2Gi
-  hooks:
-    # NOTE: Make sure keys are lowercase
+  defaults:
+    # Not required if root image are set
+    image: {}
+      # name: HOOK-SET-BY-CICD-IMAGE
+      # tag: HOOK-SET-BY-CICD-TAG
+      # imagePullPolicy: IfNotPresent
+      # imagePullSecrets:
+    extraEnv: {}
+    annotations: {}
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        memory: "512Mi"
+  # Set as a dict to merge with chart defaults via -f overlay; set as an array to reset.
+  #
+  # ArgoCD startup ordering (the wave contract — keep in sync with banjo-alpha-deps):
+  #   wave 0  : deps (tcpg, dragonfly, minio) — regular Sync resources, gated by their
+  #             own readiness probes. ArgoCD waits for the whole wave to be Healthy
+  #             before the next wave, so nothing here needs a sync-wave annotation.
+  #   wave 10 : wait-for-resources — app-side config/connectivity validation.
+  #   wave 20 : db-migrate, collect-static — schema + static, run only after deps healthy.
+  #   wave 30 : api, worker, beat, ingress — set via the resource-level
+  #             `argocd.argoproj.io/sync-wave` default on `api.deploymentAnnotations`,
+  #             `worker.queueDefaults.deploymentAnnotations`,
+  #             `worker.addonDefaults.deploymentAnnotations`, and `api.ingress.annotations`.
+  # Hooks are `hook: Sync` (NOT PreSync — PreSync runs before deps are even applied and
+  # would deadlock on bootstrap; NOT PostSync — that runs after api is already serving).
+  jobs:
+    # NOTE: Make sure keys are lowercase.
+    wait-for-resources:
+      enabled: true  # gate for api/worker; requires https://github.com/toggle-corp/banjo-utils
+      annotations:
+        argocd.argoproj.io/hook: "Sync"
+        argocd.argoproj.io/sync-wave: "10"
+        argocd.argoproj.io/hook-delete-policy: HookSucceeded
+      command: ["./manage.py", "wait_for_resources"]
     db-migrate:
       enabled: true
-      hook: PostSync
-      preserveHistory: true
+      # useGenerateName: true keeps prior migration history (each sync = unique name).
+      # NOTE: do NOT add argocd.argoproj.io/hook-delete-policy with useGenerateName —
+      # BeforeHookCreation matches by name and is inert here (ArgoCD docs).
+      # Cleanup is handled k8s-native via ttlSecondsAfterFinished below.
+      useGenerateName: true
+      activeDeadlineSeconds: 3600
+      ttlSecondsAfterFinished: 604800  # 7 days
+      annotations:
+        argocd.argoproj.io/hook: "Sync"
+        argocd.argoproj.io/sync-wave: "20"
       command: ["./manage.py", "migrate"]
     collect-static:
       enabled: true
-      hook: PostSync
+      annotations:
+        argocd.argoproj.io/hook: "Sync"
+        argocd.argoproj.io/sync-wave: "20"
+        argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
       command: ["./manage.py", "collectstatic", "--noinput"]
+    # Mount inline script content as files and pipe one into a shell. Each key
+    # under `files` becomes a file at `filesMountPath` (default /etc/hook-files),
+    # rendered into a per-job ConfigMap that inherits this job's hook + sync-wave
+    # annotations (delete-policy forced to BeforeHookCreation so content is fresh
+    # every sync). stdin redirection needs a shell, so wrap the command yourself
+    # with `sh -c` and reference the mounted path — the chart does not do this for
+    # you. File keys must match [-._a-zA-Z0-9]+ and filesMountPath must be absolute.
+    # run-shell-script:
+    #   enabled: false
+    #   annotations:
+    #     argocd.argoproj.io/hook: "Sync"
+    #     argocd.argoproj.io/sync-wave: "20"
+    #     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    #   filesMountPath: /etc/hook-files  # default; override if it collides with the image
+    #   files:
+    #     seed.py: |
+    #       from django.contrib.auth import get_user_model
+    #       User = get_user_model()
+    #       User.objects.get_or_create(username="admin", defaults={"is_superuser": True})
+    #   command: ["sh", "-c", "./manage.py shell < /etc/hook-files/seed.py"]
 
 extraConfigMapName: ""  # User provided name
 envConfigMapName: ""
@@ -267,20 +400,15 @@ env: {}
 extraSecretsName: ""  # User provided name
 secretsName: ""
 secrets: {}
-  # # Postgres
-  # POSTGRES_DB: "{{ $.Values.postgresql.auth.database }}"
+  # # Wire infrastructure connection strings here. Values are tpl-evaluated.
+  # # Postgres / Redis / S3 should be deployed via a separate infrastructure chart.
+  # POSTGRES_DB: "my-app"
   # POSTGRES_USER: "postgres"
-  # POSTGRES_PASSWORD: "{{ $.Values.postgresql.auth.postgresPassword }}"
-  # POSTGRES_HOST: "{{ include \"postgresql.v1.primary.fullname\" $.Subcharts.postgresql }}"
-  # POSTGRES_PORT: "{{ include \"postgresql.v1.service.port\" $.Subcharts.postgresql }}"
-
-  # # Redis
-  # REDIS_URL: "redis://{{ printf \"%s-master\" (include \"common.names.fullname\" .Subcharts.redis) }}:6379/0"
-
-  # # Minio (S3)
-  # AWS_S3_ENDPOINT_URL: "https://\{{ $.Values.minio.apiIngress.hostname }}/"
-  # AWS_S3_ACCESS_KEY_ID: "{{ required \".Values.minio.auth.rootUser\" $.Values.minio.auth.rootUser }}"
-  # AWS_S3_SECRET_ACCESS_KEY: "{{ required \".Values.minio.auth.rootPassword\" $.Values.minio.auth.rootPassword }}"
+  # POSTGRES_PASSWORD: "set-via-extraSecretsName-or-external-secret"
+  # POSTGRES_HOST: "my-app-postgres"
+  # POSTGRES_PORT: "5432"
+  # REDIS_URL: "redis://my-app-redis-master:6379/0"
+  # AWS_S3_ENDPOINT_URL: "https://my-app-minio.example.com/"
   # AWS_S3_REGION: "us-east-1"
   # AWS_S3_BUCKET_STATIC_NAME: static-data
   # AWS_S3_BUCKET_MEDIA_NAME: media-data

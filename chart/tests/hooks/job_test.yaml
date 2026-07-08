@@ -1,0 +1,422 @@
+suite: Hook Job tests
+templates:
+  - templates/hooks/job.yaml
+  - templates/config/secret.yaml
+  - templates/config/configmap.yaml
+tests:
+  - it: should render wait-for-resources, db-migrate and collect-static under default values
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+    asserts:
+      - hasDocuments:
+          count: 3
+
+  - it: db-migrate ships with generateName, ttlSecondsAfterFinished=604800, activeDeadlineSeconds=3600
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: true
+          collect-static:
+            enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Job
+      - isNotEmpty:
+          path: metadata.generateName
+      - notExists:
+          path: metadata.name
+      - equal:
+          path: spec.ttlSecondsAfterFinished
+          value: 604800
+      - equal:
+          path: spec.activeDeadlineSeconds
+          value: 3600
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: Sync
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "20"
+      # REGRESSION GUARD: BeforeHookCreation is inert with generateName.
+      # ArgoCD docs: use BeforeHookCreation OR generateName, not both.
+      - notExists:
+          path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
+
+  - it: collect-static ships with static name, sync-wave 20, hook-delete-policy BeforeHookCreation
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isNotEmpty:
+          path: metadata.name
+      - notExists:
+          path: metadata.generateName
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: Sync
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "20"
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
+          value: BeforeHookCreation
+
+  - it: wait-for-resources is enabled by default with hook Sync, sync-wave 10
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: false
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: Sync
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "10"
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
+          value: HookSucceeded
+
+  - it: should pass arbitrary annotations verbatim (works for both Argo and Helm hook styles)
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: false
+          custom:
+            enabled: true
+            command: ["./run"]
+            annotations:
+              helm.sh/hook: post-install,post-upgrade
+              helm.sh/hook-weight: "5"
+              custom.example/key: my-value
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-install,post-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "5"
+      - equal:
+          path: metadata.annotations["custom.example/key"]
+          value: my-value
+
+  - it: should render equivalent hook from array form
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          - name: array-form-hook
+            enabled: true
+            command: ["./array-form"]
+            annotations:
+              argocd.argoproj.io/hook: PostSync
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: PostSync
+
+  - it: should set args when job.args provided
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: false
+          custom:
+            enabled: true
+            command: ["/bin/bash", "-c"]
+            args: ["date --iso-8601"]
+            annotations:
+              argocd.argoproj.io/hook: PostSync
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["date --iso-8601"]
+
+  - it: should not render when hooks.enabled is false
+    template: templates/hooks/job.yaml
+    set:
+      hooks:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: files renders a per-job ConfigMap that inherits hook+wave and forces BeforeHookCreation
+    template: templates/hooks/job.yaml
+    release:
+      name: release-name
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: false
+          run-shell-script:
+            enabled: true
+            annotations:
+              argocd.argoproj.io/hook: "Sync"
+              argocd.argoproj.io/sync-wave: "20"
+              argocd.argoproj.io/hook-delete-policy: HookSucceeded
+            files:
+              seed.py: |
+                print("hi")
+            command: ["sh", "-c", "./manage.py shell < /etc/hook-files/seed.py"]
+    asserts:
+      # one ConfigMap + one Job
+      - hasDocuments:
+          count: 2
+      - documentIndex: 0
+        isKind:
+          of: ConfigMap
+      - documentIndex: 0
+        equal:
+          path: metadata.name
+          value: release-name-banjo-helm-run-shell-script-files
+      - documentIndex: 0
+        equal:
+          path: data["seed.py"]
+          value: |
+            print("hi")
+      - documentIndex: 0
+        equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: Sync
+      - documentIndex: 0
+        equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "20"
+      # ConfigMap always forces BeforeHookCreation, regardless of the job's own policy
+      - documentIndex: 0
+        equal:
+          path: metadata.annotations["argocd.argoproj.io/hook-delete-policy"]
+          value: BeforeHookCreation
+
+  - it: files wires a hook-files volume + mount at the default path into the Job
+    template: templates/hooks/job.yaml
+    release:
+      name: release-name
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: false
+          run-shell-script:
+            enabled: true
+            annotations:
+              argocd.argoproj.io/hook: "Sync"
+            files:
+              seed.py: 'print(1)'
+            command: ["sh", "-c", "true"]
+    asserts:
+      - documentIndex: 1
+        isKind:
+          of: Job
+      - documentIndex: 1
+        contains:
+          path: spec.template.spec.volumes
+          content:
+            name: hook-files
+            configMap:
+              name: release-name-banjo-helm-run-shell-script-files
+      - documentIndex: 1
+        contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: hook-files
+            mountPath: /etc/hook-files
+            readOnly: true
+
+  - it: filesMountPath overrides the default mount location
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: false
+          collect-static:
+            enabled: false
+          run-shell-script:
+            enabled: true
+            annotations:
+              argocd.argoproj.io/hook: "Sync"
+            filesMountPath: /opt/scripts
+            files:
+              seed.py: 'print(1)'
+            command: ["sh", "-c", "true"]
+    asserts:
+      - documentIndex: 1
+        contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: hook-files
+            mountPath: /opt/scripts
+            readOnly: true
+
+  - it: no ConfigMap is rendered when a job declares no files
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+    asserts:
+      # default jobs (wait-for-resources, db-migrate, collect-static) are all Jobs
+      - hasDocuments:
+          count: 3
+      - isKind:
+          of: Job
+
+  - it: fails when a files key is not a valid ConfigMap key
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          bad:
+            enabled: true
+            command: ["sh"]
+            files:
+              "sub/dir.py": "x"
+    asserts:
+      - failedTemplate:
+          errorMessage: 'hooks.jobs.bad.files: key "sub/dir.py" is invalid (a ConfigMap key allows only letters, digits, ''-'', ''_'', ''.'')'
+
+  - it: fails when filesMountPath is not absolute
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          bad:
+            enabled: true
+            command: ["sh"]
+            filesMountPath: etc/hook-files
+            files:
+              seed.py: "x"
+    asserts:
+      - failedTemplate:
+          errorMessage: 'hooks.jobs.bad.filesMountPath "etc/hook-files" must be an absolute path (start with ''/'')'
+
+  - it: fails when a job name is not a lowercase RFC 1123 subdomain
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        jobs:
+          BadName:
+            enabled: true
+            command: ["sh"]
+    asserts:
+      - failedTemplate:
+          errorMessage: 'hooks.jobs: job name "BadName" must be a lowercase RFC 1123 subdomain (letters, digits, ''-'', ''.'')'
+
+  - it: should merge hooks.defaults.extraEnv with per-job extraEnv
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        defaults:
+          extraEnv:
+            SHARED: "from-defaults"
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: true
+            extraEnv:
+              JOB_KEY: "from-job"
+          collect-static:
+            enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARED
+            value: "from-defaults"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: JOB_KEY
+            value: "from-job"
