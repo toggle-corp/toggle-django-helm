@@ -100,6 +100,19 @@ tests:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
           value: "99"
 
+  - it: should tpl-evaluate api.ingress.annotation values against the root context
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          annotations:
+            traefik.ingress.kubernetes.io/router.middlewares: "{{ .Release.Namespace }}-mw@kubernetescrd"
+    asserts:
+      - equal:
+          path: metadata.annotations["traefik.ingress.kubernetes.io/router.middlewares"]
+          value: NAMESPACE-mw@kubernetescrd
+
   - it: should not render when ingress.enabled is false
     set:
       api:

@@ -261,6 +261,22 @@ checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml
 {{- end }}
 
 {{/*
+Render an annotations map as key/value lines, tpl-evaluating each value against
+the root context. Keys are emitted literally; values pass through `tpl` so they
+can reference release data (e.g. `{{ .Release.Namespace }}`), then are quoted
+(k8s annotation values must be strings). Body-only — the caller emits the
+`annotations:` key and guards emptiness.
+Usage: include "banjo.tplAnnotations" (dict "Annotations" $map "Context" $)
+*/}}
+{{- define "banjo.tplAnnotations" -}}
+{{- $out := dict -}}
+{{- range $k, $v := .Annotations -}}
+{{- $_ := set $out $k (tpl (toString $v) $.Context) -}}
+{{- end -}}
+{{- toYaml $out -}}
+{{- end }}
+
+{{/*
 Generate default labels for app deployments
 */}}
 {{- define "banjo.appDefaultLabels" -}}
