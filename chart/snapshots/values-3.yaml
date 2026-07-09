@@ -23,6 +23,7 @@ stringData:
   POSTGRES_PORT: "5432"
   POSTGRES_USER: "postgres"
   REDIS_URL: "redis://my-app-redis-master:6379/0"
+
 ---
 # Source: banjo-helm/templates/config/configmap.yaml
 kind: ConfigMap
@@ -36,6 +37,7 @@ metadata:
 data:
   # Configs
   ENV_1: "VALUE_1"
+
 ---
 # Source: banjo-helm/templates/extraManifests.yaml
 # Manifest: local-cache-pvc
@@ -54,6 +56,8 @@ spec:
   resources:
     requests:
       storage: 2Gi
+
+
 ---
 # Source: banjo-helm/templates/api/service.yaml
 apiVersion: v1
@@ -74,6 +78,7 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
+
 ---
 # Source: banjo-helm/templates/worker-addons/service.yaml
 # Addon Service: flower
@@ -97,6 +102,7 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 8000
+
 ---
 # Source: banjo-helm/templates/api/deployment.yaml
 apiVersion: apps/v1
@@ -156,6 +162,7 @@ spec:
             preStop:
               sleep:
                 seconds: 8
+
 ---
 # Source: banjo-helm/templates/worker-addons/deployment.yaml
 # Addon: flower
@@ -218,6 +225,8 @@ spec:
           env:
             - name: DJANGO_APP_TYPE
               value: "worker"
+            
+
 ---
 # Source: banjo-helm/templates/worker/deployment.yaml
 # Queue: array-form-queue
@@ -280,6 +289,8 @@ spec:
           env:
             - name: DJANGO_APP_TYPE
               value: "worker"
+            
+
 ---
 # Source: banjo-helm/templates/hooks/job.yaml
 # Hook: collect-static
@@ -438,6 +449,8 @@ spec:
           env:
             - name: DJANGO_APP_TYPE
               value: "hook"
+            
+
 ---
 # Source: banjo-helm/templates/api/ingress.yaml
 apiVersion: networking.k8s.io/v1
@@ -464,6 +477,7 @@ spec:
                 name: release-name-banjo-helm-api
                 port:
                   number: 80
+
 ---
 # Source: banjo-helm/templates/extraManifests.yaml
 # Manifest: cnpg_cluster

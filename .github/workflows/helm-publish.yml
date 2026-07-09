@@ -32,6 +32,10 @@ jobs:
         with:
           submodules: true
 
+      - uses: azure/setup-helm@v4
+        with:
+          version: v4.2.0
+
       - name: Prepare
         id: prep
         env:
@@ -70,7 +74,7 @@ jobs:
         run: helm template ./chart --values ./chart/linter_values.yaml
 
       - name: Install helm unittest plugin
-        run: helm plugin install https://github.com/helm-unittest/helm-unittest
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest --verify=false
 
       - name: Run Helm unit tests
         run: ./run_tests.sh

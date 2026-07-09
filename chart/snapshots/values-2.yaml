@@ -5,6 +5,7 @@ kind: ServiceAccount
 metadata:
   name: release-name-banjo-helm
 automountServiceAccountToken: true
+
 ---
 # Source: banjo-helm/templates/config/configmap.yaml
 kind: ConfigMap
@@ -18,6 +19,7 @@ metadata:
 data:
   # Configs
   ENV_1: "VALUE_1"
+
 ---
 # Source: banjo-helm/templates/hooks/job.yaml
 # Hook files ConfigMap for: run-shell-script
@@ -58,6 +60,7 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
+
 ---
 # Source: banjo-helm/templates/worker-addons/service.yaml
 # Addon Service: flower
@@ -81,6 +84,7 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 8000
+
 ---
 # Source: banjo-helm/templates/api/deployment.yaml
 apiVersion: apps/v1
@@ -175,6 +179,7 @@ spec:
             - mountPath: /mnt/secrets-store
               name: my-secret
               readOnly: true
+
 ---
 # Source: banjo-helm/templates/worker-addons/deployment.yaml
 # Addon: beat
@@ -388,6 +393,7 @@ spec:
             - mountPath: /mnt/secrets-store
               name: my-secret
               readOnly: true
+
 ---
 # Source: banjo-helm/templates/worker/deployment.yaml
 # Queue: default
@@ -514,6 +520,7 @@ spec:
               readOnly: true
             - mountPath: /var/run/celery
               name: celery-heartbeat
+
 ---
 # Source: banjo-helm/templates/hooks/job.yaml
 # Hook: collect-static
@@ -1051,6 +1058,7 @@ spec:
             - mountPath: /mnt/secrets-store
               name: my-secret
               readOnly: true
+
 ---
 # Source: banjo-helm/templates/cronjobs/deployment.yaml
 # Job: dummy-01
@@ -1232,6 +1240,7 @@ spec:
                 - mountPath: /mnt/secrets-store
                   name: my-secret
                   readOnly: true
+
 ---
 # Source: banjo-helm/templates/api/ingress.yaml
 apiVersion: networking.k8s.io/v1
@@ -1258,6 +1267,7 @@ spec:
                 name: release-name-banjo-helm-api
                 port:
                   number: 80
+
 ---
 # Source: banjo-helm/templates/api/secrets-provider-class.yaml
 apiVersion: secrets-store.csi.x-k8s.io/v1

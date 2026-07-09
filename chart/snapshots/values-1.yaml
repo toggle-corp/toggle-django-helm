@@ -11,6 +11,7 @@ metadata:
     
     azure.workload.identity/use: "true"
 automountServiceAccountToken: true
+
 ---
 # Source: banjo-helm/templates/config/secret.yaml
 kind: Secret
@@ -36,6 +37,7 @@ stringData:
   POSTGRES_PORT: "5432"
   POSTGRES_USER: "postgres"
   REDIS_URL: "redis://my-app-redis-master:6379/0"
+
 ---
 # Source: banjo-helm/templates/config/configmap.yaml
 kind: ConfigMap
@@ -49,6 +51,7 @@ metadata:
 data:
   # Configs
   ENV_1: "VALUE_1"
+
 ---
 # Source: banjo-helm/templates/api/service.yaml
 apiVersion: v1
@@ -69,6 +72,7 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
+
 ---
 # Source: banjo-helm/templates/worker-addons/service.yaml
 # Addon Service: flower
@@ -92,6 +96,7 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 8000
+
 ---
 # Source: banjo-helm/templates/api/deployment.yaml
 apiVersion: apps/v1
@@ -150,6 +155,7 @@ spec:
             preStop:
               sleep:
                 seconds: 8
+
 ---
 # Source: banjo-helm/templates/worker-addons/deployment.yaml
 # Addon: beat
@@ -272,6 +278,8 @@ spec:
           env:
             - name: DJANGO_APP_TYPE
               value: "worker"
+            
+
 ---
 # Source: banjo-helm/templates/worker/deployment.yaml
 # Queue: default
@@ -334,6 +342,8 @@ spec:
           env:
             - name: DJANGO_APP_TYPE
               value: "worker"
+            
+
 ---
 # Source: banjo-helm/templates/hooks/job.yaml
 # Hook: collect-static
@@ -489,6 +499,8 @@ spec:
           env:
             - name: DJANGO_APP_TYPE
               value: "hook"
+            
+
 ---
 # Source: banjo-helm/templates/api/ingress.yaml
 apiVersion: networking.k8s.io/v1
@@ -519,6 +531,7 @@ spec:
     - secretName: my-secret
       hosts:
         - "myapp.example.com"
+
 ---
 # Source: banjo-helm/templates/extraManifests.yaml
 apiVersion: postgresql.cnpg.io/v1
@@ -538,6 +551,7 @@ spec:
       barmanObjectName: aws-s3-store
   storage:
     size: 300Mi
+
 ---
 # Source: banjo-helm/templates/extraManifests.yaml
 apiVersion: barmancloud.cnpg.io/v1
