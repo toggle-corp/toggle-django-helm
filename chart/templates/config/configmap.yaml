@@ -9,5 +9,7 @@ metadata:
 data:
   # Configs
   {{- range $name, $value := .Values.env }}
-  {{ $name }}: {{ tpl $value $ | quote }}
+  {{- if not (kindIs "invalid" $value) }}
+  {{ $name }}: {{ tpl (toString $value) $ | quote }}
+  {{- end }}
   {{- end }}

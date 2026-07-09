@@ -395,6 +395,7 @@ hooks:
 
 extraConfigMapName: ""  # User provided name
 envConfigMapName: ""
+# Values are tpl-evaluated. Numbers/booleans are coerced to strings; a null value omits the key.
 env: {}
 
 extraSecretsName: ""  # User provided name

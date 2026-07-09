@@ -262,6 +262,40 @@ tests:
             name: QUEUE_KEY
             value: "from-queue"
 
+  - it: should coerce non-string extraEnv values (number/boolean) to quoted strings and skip nil
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          commandPrefix: ["celery", "-A", "myapp", "worker"]
+          extraEnv:
+            MAX_RETRIES: 3
+            VERBOSE: true
+            REMOVED: null
+        queues:
+          priority:
+            enabled: true
+            celeryArgs: ["-Q", "priority"]
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAX_RETRIES
+            value: "3"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: VERBOSE
+            value: "true"
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: REMOVED
+
   - it: should render per-queue volume + mount (dict form, name injected)
     template: templates/worker/deployment.yaml
     set:

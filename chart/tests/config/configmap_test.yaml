@@ -41,6 +41,31 @@ tests:
           path: data.INGRESS_HOST
           value: "myapp.example.com"
 
+  - it: should coerce non-string env values (number/boolean) to quoted strings and skip nil
+    set:
+      environment: TEST
+      env:
+        PORT: 5432
+        DEBUG: true
+        RATIO: 1.5
+        REMOVED: null
+        KEPT: "hello"
+    asserts:
+      - equal:
+          path: data.PORT
+          value: "5432"
+      - equal:
+          path: data.DEBUG
+          value: "true"
+      - equal:
+          path: data.RATIO
+          value: "1.5"
+      - equal:
+          path: data.KEPT
+          value: "hello"
+      - notExists:
+          path: data.REMOVED
+
   - it: should render ConfigMap with empty data when env is empty
     set:
       environment: TEST

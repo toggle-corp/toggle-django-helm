@@ -235,8 +235,10 @@ Usage: include "banjo.extraEnvBlock" (dict "Default" $defaultsBlock "Override" $
 {{- $override := default dict (default dict .Override).extraEnv -}}
 {{- $merged := merge (dict) $override $default -}}
 {{- range $k, $v := $merged }}
+{{- if not (kindIs "invalid" $v) }}
 - name: {{ $k }}
   value: {{ tpl (toString $v) $.Context | quote }}
+{{- end }}
 {{- end }}
 {{- end }}
 
