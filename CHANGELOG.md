@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/toggle-corp/banjo-helm/compare/0.4.0..0.4.1) - 2026-07-09
+### Changes:
+
+#### 🚀  Features
+
+- *(ingress)* Tpl-evaluate api.ingress.annotation values - ([2e63b12](https://github.com/toggle-corp/banjo-helm/commit/2e63b12153153b9e14bc09b5d17314e290541a4e))
+
+#### ⚙️ Miscellaneous Tasks
+
+- *(helm)* Pin setup-helm to v4.2.0 and regenerate snapshots - ([1190e7f](https://github.com/toggle-corp/banjo-helm/commit/1190e7f524d30b9e6ce6e1b1e8866fda2ab534d4))
+
+
 ## [0.4.0](https://github.com/toggle-corp/banjo-helm/compare/0.3.0..0.4.0) - 2026-07-08
 ### Changes:
 
