@@ -288,6 +288,30 @@ Generate default labels for app deployments
 {{- end }}
 
 {{/*
+Resolve pod scheduling fields (where a pod is allowed to run) for one workload.
+Usage: include "banjo.schedulingConfig" (dict "Default" $defaults "Override" $config "Context" $)
+*/}}
+{{- define "banjo.schedulingConfig" -}}
+{{- $root := .Context.Values -}}
+{{- $override := default dict .Override -}}
+{{- $default := default dict .Default -}}
+{{- $out := list -}}
+{{- with $override.nodeSelector | default $default.nodeSelector | default $root.nodeSelector -}}
+{{- $out = append $out (printf "nodeSelector:\n%s" (toYaml . | indent 2)) -}}
+{{- end -}}
+{{- with $override.tolerations | default $default.tolerations | default $root.tolerations -}}
+{{- $out = append $out (printf "tolerations:\n%s" (toYaml . | indent 2)) -}}
+{{- end -}}
+{{- with $override.affinity | default $default.affinity | default $root.affinity -}}
+{{- $out = append $out (printf "affinity:\n%s" (toYaml . | indent 2)) -}}
+{{- end -}}
+{{- with $override.topologySpreadConstraints | default $default.topologySpreadConstraints | default $root.topologySpreadConstraints -}}
+{{- $out = append $out (printf "topologySpreadConstraints:\n%s" (toYaml . | indent 2)) -}}
+{{- end -}}
+{{- join "\n" $out -}}
+{{- end }}
+
+{{/*
 Generate default volumes for app deployments.
 Usage: include "banjo.appDefaultVolumes" (dict "Context" $ "Extra" <list>)
   Context: root context.

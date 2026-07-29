@@ -133,6 +133,20 @@ spec:
               secretProviderClass: my-secret-provider
           name: my-stuff
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: app
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
+      topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              component: api
+          maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
       terminationGracePeriodSeconds: 38
       containers:
         - name: api
@@ -238,6 +252,13 @@ spec:
             sizeLimit: 1Mi
           name: celery-heartbeat
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: control
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
       terminationGracePeriodSeconds: 45
       containers:
         - name: beat
@@ -346,6 +367,13 @@ spec:
               secretProviderClass: my-secret-provider
           name: my-stuff
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: app
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
       containers:
         - name: flower
           image: "ghcr.io/example/example:v1.0.1"
@@ -450,6 +478,22 @@ spec:
             sizeLimit: 1Mi
           name: celery-heartbeat
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: worker
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
       terminationGracePeriodSeconds: 90
       containers:
         - name: worker
@@ -568,6 +612,13 @@ spec:
               secretProviderClass: my-secret-provider
           name: my-stuff
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: app
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
       containers:
         - name: collect-static
           image: "ghcr.io/example/example:v1.0.1"
@@ -657,6 +708,13 @@ spec:
               secretProviderClass: my-secret-provider
           name: my-stuff
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: app
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
       containers:
         - name: db-migrate
           image: "ghcr.io/example/example:v1.0.1"
@@ -743,6 +801,13 @@ spec:
               secretProviderClass: my-secret-provider
           name: my-stuff
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: app
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
       containers:
         - name: my-another-custom-command
           image: "ghcr.io/example/example:v1.0.1"
@@ -831,6 +896,13 @@ spec:
               secretProviderClass: my-secret-provider
           name: my-stuff
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: app
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
       containers:
         - name: my-custom-command
           image: "ghcr.io/example/example:v1.0.1"
@@ -927,6 +999,13 @@ spec:
             name: release-name-banjo-helm-run-shell-script-files
           name: hook-files
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: app
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
       containers:
         - name: run-shell-script
           image: "ghcr.io/example/example:v1.0.1"
@@ -1018,6 +1097,13 @@ spec:
               secretProviderClass: my-secret-provider
           name: my-stuff
       serviceAccountName: release-name-banjo-helm
+      nodeSelector:
+        pool: app
+      tolerations:
+        - effect: NoSchedule
+          key: dedicated
+          operator: Equal
+          value: app
       containers:
         - name: wait-for-resources
           image: "ghcr.io/example/example:v1.0.1"
@@ -1107,6 +1193,13 @@ spec:
                   secretProviderClass: my-secret-provider
               name: my-stuff
           serviceAccountName: release-name-banjo-helm
+          nodeSelector:
+            pool: batch
+          tolerations:
+            - effect: NoSchedule
+              key: dedicated
+              operator: Equal
+              value: app
           containers:
             - name: cronjob
               command:
@@ -1198,6 +1291,13 @@ spec:
                   secretProviderClass: my-secret-provider
               name: my-stuff
           serviceAccountName: release-name-banjo-helm
+          nodeSelector:
+            pool: batch
+          tolerations:
+            - effect: NoSchedule
+              key: dedicated
+              operator: Equal
+              value: app
           containers:
             - name: cronjob
               command:

@@ -304,3 +304,65 @@ tests:
           path: spec.jobTemplate.spec.template.spec.containers[0].resources.limits.memory
       - notExists:
           path: spec.jobTemplate.spec.template.spec.containers[0].resources.limits.cpu
+
+  - it: should place the job pod using scheduling resolved root -> defaults -> per-job
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      nodeSelector:
+        pool: app
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: app
+          effect: NoSchedule
+      cronjobs:
+        enabled: true
+        defaults:
+          nodeSelector:
+            pool: batch
+        jobs:
+          nightly-report:
+            enabled: true
+            schedule: "0 2 * * *"
+            command: ["./manage.py", "report"]
+            nodeSelector:
+              pool: bigmem
+    asserts:
+      # rendered on the pod template inside jobTemplate, not on the CronJob spec
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.nodeSelector
+          value:
+            pool: bigmem
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.tolerations
+          value:
+            - key: dedicated
+              operator: Equal
+              value: app
+              effect: NoSchedule
+      - notExists:
+          path: spec.nodeSelector
+
+  - it: should emit no scheduling fields on job pods when none are configured
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.tolerations
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.affinity
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.topologySpreadConstraints

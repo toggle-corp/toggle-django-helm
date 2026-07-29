@@ -35,6 +35,7 @@ spec:
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
+      {{- with (include "banjo.schedulingConfig" (dict "Default" (dict) "Override" .Values.api "Context" $)) -}}{{ . | nindent 6 }}{{- end }}
       {{- $preStop := int (default 0 (dig "lifecycle" "preStopSleepSeconds" 0 .Values.api)) }}
       {{- if .Values.api.terminationGracePeriodSeconds }}
       terminationGracePeriodSeconds: {{ .Values.api.terminationGracePeriodSeconds }}

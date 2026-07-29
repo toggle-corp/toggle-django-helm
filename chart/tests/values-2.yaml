@@ -20,6 +20,16 @@ podVolumeMounts:
     mountPath: /mnt/secrets-store
     readOnly: true
 
+# Root scheduling: inherited by every pod unless a lower level replaces the field.
+# hooks/ pods set nothing below, so they render these verbatim.
+nodeSelector:
+  pool: app
+tolerations:
+  - key: dedicated
+    operator: Equal
+    value: app
+    effect: NoSchedule
+
 image:
   name: ghcr.io/example/example
   tag: v1.0.1
@@ -36,6 +46,15 @@ api:
   resources:
     requests:
       cpu: "0.2"
+  # Field set only at component level — root has no topologySpreadConstraints,
+  # and the inherited root nodeSelector/tolerations must survive alongside it.
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          component: api
 
 worker:
   image:
@@ -49,6 +68,9 @@ worker:
       strategy:
         type: Recreate
       terminationGracePeriodSeconds: 45
+      # Per-addon override; beat is a singleton pinned to the control nodepool.
+      nodeSelector:
+        pool: control
       # Writer + reader agree on the heartbeat path via this env; the RAM
       # emptyDir below backs it, so the probe needs no --heartbeat-file flag.
       extraEnv:
@@ -82,6 +104,9 @@ worker:
   queueDefaults:
     commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
     terminationGracePeriodSeconds: 90
+    # Middle level replaces the root nodeSelector for every queue.
+    nodeSelector:
+      pool: worker
     # BANJO_CELERY_HEARTBEAT_FILE points both the worker (writer) and the
     # banjo-celery-probe reader at one path on the RAM emptyDir below, so the
     # probe needs no --heartbeat-file flag.
@@ -123,6 +148,16 @@ worker:
       resources:
         requests:
           cpu: "0.1"
+      # Per-queue affinity on top of the inherited queueDefaults nodeSelector.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values:
+                      - amd64
 
 hooks:
   enabled: true
@@ -167,6 +202,9 @@ cronjobs:
     image:
       name: ghcr.io/example/cronjob
       tag: v1.cronjob
+    # Batch pool for every cronjob, replacing the root nodeSelector.
+    nodeSelector:
+      pool: batch
     resources:
       requests:
         cpu: "1"

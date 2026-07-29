@@ -65,6 +65,7 @@ spec:
       {{- if $.Values.serviceAccount.create }}
       serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
+      {{- with (include "banjo.schedulingConfig" (dict "Default" $defaults "Override" $config "Context" $)) -}}{{ . | nindent 6 }}{{- end }}
       {{- $grace := $config.terminationGracePeriodSeconds | default $defaults.terminationGracePeriodSeconds -}}
       {{- with $grace }}
       terminationGracePeriodSeconds: {{ . }}

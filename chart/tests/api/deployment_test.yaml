@@ -516,3 +516,101 @@ tests:
               configMapKeyRef:
                 name: my-config
                 key: my-key
+
+  - it: should place the pod using the root nodeSelector
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+      nodeSelector:
+        bench-slot: a
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            bench-slot: a
+
+  - it: should let api.nodeSelector replace the root nodeSelector wholesale
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        nodeSelector:
+          disktype: ssd
+      nodeSelector:
+        pool: app
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            disktype: ssd
+
+  - it: should pass tolerations, affinity and topologySpreadConstraints through verbatim
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: app
+          effect: NoSchedule
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: ["amd64"]
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              component: api
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - key: dedicated
+              operator: Equal
+              value: app
+              effect: NoSchedule
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values
+          value: ["amd64"]
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].topologyKey
+          value: kubernetes.io/hostname
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels.component
+          value: api
+
+  - it: should emit no scheduling fields at all when none are configured
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.affinity
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints

@@ -420,3 +420,94 @@ tests:
           content:
             name: JOB_KEY
             value: "from-job"
+
+  # Hook pods MUST honour root scheduling: a root toleration for a tainted pool
+  # that hook pods ignore leaves db-migrate (sync-wave 20) permanently Pending,
+  # which deadlocks the whole ArgoCD sync before api/worker (wave 30) ever apply.
+  - it: should apply root tolerations and nodeSelector to hook pods
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      nodeSelector:
+        pool: app
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: app
+          effect: NoSchedule
+      hooks:
+        enabled: true
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: true
+          collect-static:
+            enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            pool: app
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - key: dedicated
+              operator: Equal
+              value: app
+              effect: NoSchedule
+
+  - it: should let a per-hook nodeSelector win over hooks.defaults and root
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      nodeSelector:
+        pool: app
+      hooks:
+        enabled: true
+        defaults:
+          nodeSelector:
+            pool: hooks
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: true
+            nodeSelector:
+              pool: migrate
+          collect-static:
+            enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            pool: migrate
+
+  - it: should emit no scheduling fields on hook pods when none are configured
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: true
+          collect-static:
+            enabled: false
+    asserts:
+      - notExists:
+          path: spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.affinity
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints

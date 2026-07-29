@@ -117,6 +117,7 @@ spec:
       {{- if $.Values.serviceAccount.create }}
       serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
+      {{- with (include "banjo.schedulingConfig" (dict "Default" $defaults "Override" $job "Context" $)) -}}{{ . | nindent 6 }}{{- end }}
       containers:
         - name: {{ $jobName }}
           {{- include "banjo.imageConfig"

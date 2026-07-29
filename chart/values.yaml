@@ -11,6 +11,37 @@ podAnnotations: {}
 podVolumes: []
 podVolumeMounts: []
 
+# Pod scheduling — constrains WHERE pods may run. Applies chart-wide to every pod
+# the chart renders (api, worker queues, worker addons, cronjobs, hook jobs).
+# Hook jobs are included deliberately: a root toleration for a tainted nodepool
+# that hooks ignored would leave db-migrate (sync-wave 20) permanently Pending and
+# deadlock the whole ArgoCD sync. See the `hooks.jobs` wave contract below.
+#
+# All four are passthrough — rendered verbatim under the matching podSpec field,
+# so any valid k8s value works. NOT tpl-evaluated (unlike env/annotations): these
+# are cluster topology facts, so `{{ ... }}` is not expanded here.
+#
+# Resolution is PER FIELD and REPLACE-ONLY (never merged), lowest level wins:
+#   per-item (queue/addon/job)  ->  component defaults  ->  these root values
+# Each field resolves on its own: setting `nodeSelector` on a queue does not
+# discard the root `tolerations`. But a value that IS set replaces the inherited
+# one wholesale — to add one label on top of a root selector, repeat the root
+# labels in the override.
+#
+# NOTE: a lower level cannot CLEAR a root value — `nodeSelector: {}` on a
+# component inherits the root value rather than emptying it (helm/helm#9136).
+# If workloads need genuinely different placement, leave these root keys unset
+# and set placement per component instead.
+#
+# Overridable at: api.*, worker.queueDefaults.* / worker.queues.<name>.*,
+# worker.addonDefaults.* / worker.addons.<name>.*,
+# cronjobs.defaults.* / cronjobs.jobs.<name>.*,
+# hooks.defaults.* / hooks.jobs.<name>.*
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
 image: {}
   # name:
   # tag:
@@ -56,6 +87,12 @@ api:
   # Per-component inline env. tpl-evaluated. Layered on top of the global
   # env: ConfigMap (envFrom) — item entries override global on key conflict.
   extraEnv: {}
+  # Pod scheduling for the api pods only. Replaces the root value per field;
+  # see the root `nodeSelector` block for the full contract.
+  # nodeSelector: {}
+  # tolerations: []
+  # affinity: {}
+  # topologySpreadConstraints: []
   # No replicaCount default — KEDA owns scaling. Set api.replicaCount: N for
   # a static count or temporary manual bumps.
   lifecycle:
@@ -156,6 +193,13 @@ worker:
     # k8s default 30s when unset.
     # terminationGracePeriodSeconds: 60
     #
+    # Pod scheduling for every queue; a per-queue value replaces this per field.
+    # See the root `nodeSelector` block for the full contract.
+    # nodeSelector: {}
+    # tolerations: []
+    # affinity: {}
+    # topologySpreadConstraints: []
+    #
     # banjo-utils worker liveness/startup probe, shared by every queue. One env
     # points both the writer (setup_worker_heartbeat bootstep) and the reader
     # (banjo-celery-probe) at a heartbeat file on a RAM emptyDir — no
@@ -221,6 +265,12 @@ worker:
     strategy: {}
     # Celery warm-shutdown drain budget on SIGTERM; size to the longest task; k8s default 30s when unset.
     # terminationGracePeriodSeconds: 60
+    # Pod scheduling for every addon; a per-addon value replaces this per field.
+    # See the root `nodeSelector` block for the full contract.
+    # nodeSelector: {}
+    # tolerations: []
+    # affinity: {}
+    # topologySpreadConstraints: []
     resources:
       requests:
         cpu: "50m"
@@ -289,6 +339,12 @@ cronjobs:
     # so a per-job null inherits this default rather than disabling — disable
     # globally here, then opt specific jobs back in with a positive override.)
     ttlSecondsAfterFinished: 604800  # 7 days
+    # Pod scheduling for every cronjob; a per-job value replaces this per field.
+    # See the root `nodeSelector` block for the full contract.
+    # nodeSelector: {}
+    # tolerations: []
+    # affinity: {}
+    # topologySpreadConstraints: []
     resources:
       requests:
         cpu: "100m"
@@ -323,6 +379,12 @@ hooks:
       # imagePullSecrets:
     extraEnv: {}
     annotations: {}
+    # Pod scheduling for every hook job; a per-job value replaces this per field.
+    # See the root `nodeSelector` block for the full contract.
+    # nodeSelector: {}
+    # tolerations: []
+    # affinity: {}
+    # topologySpreadConstraints: []
     resources:
       requests:
         cpu: "100m"

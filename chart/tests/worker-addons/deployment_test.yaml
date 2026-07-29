@@ -615,3 +615,62 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: should resolve scheduling through root -> addonDefaults -> per-addon
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      nodeSelector:
+        pool: app
+      tolerations:
+        - key: spot
+          operator: Exists
+          effect: NoSchedule
+      worker:
+        enabled: true
+        addonDefaults:
+          nodeSelector:
+            pool: worker
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            nodeSelector:
+              pool: control
+    asserts:
+      # per-addon wins over addonDefaults and root
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            pool: control
+      # unoverridden field still inherits from root
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - key: spot
+              operator: Exists
+              effect: NoSchedule
+
+  - it: should emit no scheduling fields on addon pods when none are configured
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.affinity
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints

@@ -735,3 +735,125 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.terminationGracePeriodSeconds
+
+  - it: should inherit the root nodeSelector when neither queueDefaults nor the queue set one
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      nodeSelector:
+        pool: app
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            pool: app
+
+  - it: should let queueDefaults.nodeSelector win over the root nodeSelector
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      nodeSelector:
+        pool: app
+      worker:
+        enabled: true
+        queueDefaults:
+          nodeSelector:
+            pool: worker
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            pool: worker
+
+  - it: should let a per-queue nodeSelector win over both queueDefaults and root
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      nodeSelector:
+        pool: app
+      worker:
+        enabled: true
+        queueDefaults:
+          nodeSelector:
+            pool: worker
+        queues:
+          heavy:
+            enabled: true
+            celeryArgs: ["-Q", "heavy"]
+            nodeSelector:
+              pool: bigmem
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            pool: bigmem
+
+  - it: should resolve each scheduling field independently, not as one block
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      tolerations:
+        - key: spot
+          operator: Exists
+          effect: NoSchedule
+      worker:
+        enabled: true
+        queues:
+          heavy:
+            enabled: true
+            celeryArgs: ["-Q", "heavy"]
+            nodeSelector:
+              pool: bigmem
+    asserts:
+      # per-queue nodeSelector applies...
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            pool: bigmem
+      # ...without discarding the root tolerations it did not override
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - key: spot
+              operator: Exists
+              effect: NoSchedule
+
+  - it: should emit no scheduling fields on queue pods when none are configured
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - notExists:
+          path: spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.affinity
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints
