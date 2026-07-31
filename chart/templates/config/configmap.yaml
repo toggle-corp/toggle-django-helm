@@ -10,6 +10,6 @@ data:
   # Configs
   {{- range $name, $value := .Values.env }}
   {{- if not (kindIs "invalid" $value) }}
-  {{ $name }}: {{ tpl (toString $value) $ | quote }}
+  {{ $name }}: {{ (kindIs "string" $value) | ternary (tpl (toString $value) $) (toJson $value) | quote }}
   {{- end }}
   {{- end }}

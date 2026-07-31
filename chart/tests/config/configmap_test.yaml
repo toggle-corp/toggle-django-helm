@@ -66,6 +66,22 @@ tests:
       - notExists:
           path: data.REMOVED
 
+  - it: should render large integers in full notation, not scientific
+    # Helm parses YAML numbers as float64; Go's %v switches to scientific
+    # notation past 1e6, so `toString` would emit "1e+07" for BULK_BATCH_SIZE.
+    set:
+      environment: TEST
+      env:
+        BULK_BATCH_SIZE: 10000000
+        MAX_UPLOAD_BYTES: 123456789012345
+    asserts:
+      - equal:
+          path: data.BULK_BATCH_SIZE
+          value: "10000000"
+      - equal:
+          path: data.MAX_UPLOAD_BYTES
+          value: "123456789012345"
+
   - it: should render ConfigMap with empty data when env is empty
     set:
       environment: TEST
