@@ -877,3 +877,34 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "worker.nodeSelector is not read by the chart — set it under worker.queueDefaults (queues) or worker.addonDefaults (addons)"
+
+  # A per-queue null must remove a key the queueDefaults set, not be ignored:
+  # otherwise a queue can only shadow a shared env var, never opt out of it.
+  - it: should let a per-queue null unset an extraEnv key from queueDefaults
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          extraEnv:
+            SHARED: "from-defaults"
+            KEPT: "also-from-defaults"
+        queues:
+          default:
+            enabled: true
+            extraEnv:
+              SHARED: null
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: KEPT
+            value: "also-from-defaults"
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SHARED
+            value: "from-defaults"

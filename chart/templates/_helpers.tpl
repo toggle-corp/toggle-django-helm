@@ -227,13 +227,18 @@ Generate env configs for app types
 
 {{/*
 Merge per-component extraEnv maps (defaults + override) and render as a k8s env array.
-Override wins per key. Values are tpl-evaluated against the root context.
+Override wins per key, and `KEY: null` in the override drops the key entirely,
+so an item can opt out of a shared var rather than only shadow it.
+Values are tpl-evaluated against the root context.
 Usage: include "banjo.extraEnvBlock" (dict "Default" $defaultsBlock "Override" $itemBlock "Context" $)
 */}}
 {{- define "banjo.extraEnvBlock" -}}
 {{- $default := default dict (default dict .Default).extraEnv -}}
 {{- $override := default dict (default dict .Override).extraEnv -}}
-{{- $merged := merge (dict) $override $default -}}
+{{- /* Overlay by hand rather than `merge`: mergo skips nil source values, so an
+       override of `KEY: null` would be dropped before it could unset the default. */ -}}
+{{- $merged := deepCopy $default -}}
+{{- range $k, $v := $override }}{{- $_ := set $merged $k $v -}}{{- end -}}
 {{- range $k, $v := $merged }}
 {{- if not (kindIs "invalid" $v) }}
 - name: {{ $k }}

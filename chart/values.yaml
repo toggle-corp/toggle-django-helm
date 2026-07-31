@@ -94,6 +94,8 @@ api:
   annotations: {}
   # Per-component inline env. tpl-evaluated. Layered on top of the global
   # env: ConfigMap (envFrom) — item entries override global on key conflict.
+  # A per-item `KEY: null` drops the key rather than overriding it, so an item
+  # can opt out of a var its component defaults set.
   extraEnv: {}
   # Pod scheduling for the api pods only. Replaces the root value per field;
   # see the root `nodeSelector` block for the full contract.
