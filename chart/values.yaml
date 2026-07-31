@@ -468,9 +468,17 @@ hooks:
     #       User.objects.get_or_create(username="admin", defaults={"is_superuser": True})
     #   command: ["sh", "-c", "./manage.py shell < /etc/hook-files/seed.py"]
 
+# Both `env` and `secrets` below become k8s objects consumed via envFrom, and
+# share one value contract:
+#   - String values are tpl-evaluated, so they can reference release data.
+#   - Non-strings are JSON-encoded, then quoted (k8s env values must be strings).
+#     Numbers keep their full notation — 10000000 arrives as "10000000".
+#   - A null value OMITS THE KEY ENTIRELY. This is the standard Helm idiom for
+#     removing an inherited key, but note that envFrom has no way to signal it:
+#     the container simply starts without the variable, and the app fails at
+#     first use rather than at render. Set "" for an intentionally empty value.
 extraConfigMapName: ""  # User provided name
 envConfigMapName: ""
-# Values are tpl-evaluated. Numbers/booleans are coerced to strings; a null value omits the key.
 env: {}
 
 extraSecretsName: ""  # User provided name
