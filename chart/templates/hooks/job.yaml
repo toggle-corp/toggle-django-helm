@@ -117,7 +117,8 @@ spec:
       {{- if $.Values.serviceAccount.create }}
       serviceAccountName: {{ include "banjo.serviceAccountName" $ }}
       {{- end }}
-      {{- with (include "banjo.schedulingConfig" (dict "Default" $defaults "Override" $job "Context" $)) -}}{{ . | nindent 6 }}{{- end }}
+      {{- /* Hooks inherit only the permissive root fields; see banjo.schedulingConfig. */ -}}
+      {{- with (include "banjo.schedulingConfig" (dict "Default" $defaults "Override" $job "Context" $ "RootFields" (list "nodeSelector" "tolerations"))) -}}{{ . | nindent 6 }}{{- end }}
       containers:
         - name: {{ $jobName }}
           {{- include "banjo.imageConfig"

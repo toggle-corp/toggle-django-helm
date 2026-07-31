@@ -459,6 +459,74 @@ tests:
               value: app
               effect: NoSchedule
 
+  # ...but hook pods must NOT inherit root affinity/topologySpreadConstraints.
+  # Those are restrictive, and hook pods carry the same `app: <fullname>` label
+  # as api/worker, so the canonical HA podAntiAffinity rule would bar db-migrate
+  # from every node already running an app pod — the very deadlock that
+  # inheriting the permissive fields above exists to prevent.
+  - it: should not inherit root affinity or topologySpreadConstraints on hook pods
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - topologyKey: kubernetes.io/hostname
+              labelSelector:
+                matchLabels:
+                  app: RELEASE-NAME-banjo-helm
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+      hooks:
+        enabled: true
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: true
+          collect-static:
+            enabled: false
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints
+
+  # Not inheriting affinity from root is not the same as forbidding it — an
+  # operator who sets it under hooks/ has opted in deliberately.
+  - it: should still apply affinity set explicitly under hooks.defaults
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        defaults:
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/arch
+                        operator: In
+                        values: [amd64]
+        jobs:
+          wait-for-resources:
+            enabled: false
+          db-migrate:
+            enabled: true
+          collect-static:
+            enabled: false
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
+          value: kubernetes.io/arch
+
   - it: should let a per-hook nodeSelector win over hooks.defaults and root
     template: templates/hooks/job.yaml
     set:

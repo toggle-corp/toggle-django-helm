@@ -13,9 +13,6 @@ podVolumeMounts: []
 
 # Pod scheduling — constrains WHERE pods may run. Applies chart-wide to every pod
 # the chart renders (api, worker queues, worker addons, cronjobs, hook jobs).
-# Hook jobs are included deliberately: a root toleration for a tainted nodepool
-# that hooks ignored would leave db-migrate (sync-wave 20) permanently Pending and
-# deadlock the whole ArgoCD sync. See the `hooks.jobs` wave contract below.
 #
 # All four are passthrough — rendered verbatim under the matching podSpec field,
 # so any valid k8s value works. NOT tpl-evaluated (unlike env/annotations): these
@@ -28,10 +25,21 @@ podVolumeMounts: []
 # one wholesale — to add one label on top of a root selector, repeat the root
 # labels in the override.
 #
-# NOTE: a lower level cannot CLEAR a root value — `nodeSelector: {}` on a
-# component inherits the root value rather than emptying it (helm/helm#9136).
-# If workloads need genuinely different placement, leave these root keys unset
-# and set placement per component instead.
+# The nearest level that MENTIONS a field wins, so an explicitly empty value
+# clears the inherited one — `tolerations: []` under `cronjobs.defaults` keeps
+# batch jobs off a tainted pool the root admits them to. (Only across different
+# key paths, as here. Re-stating a key at its OWN path in a later `-f` file
+# cannot empty it: Helm coalesces maps and strips nulls — helm/helm#9136.)
+#
+# HOOK JOBS INHERIT ONLY nodeSelector AND tolerations FROM ROOT.
+# Those are permissive, and withholding them is what deadlocks a sync: a root
+# toleration for a tainted nodepool that hooks ignored leaves db-migrate
+# (sync-wave 20) permanently Pending, blocking api/worker at wave 30.
+# `affinity` and `topologySpreadConstraints` are restrictive, and hook pods
+# carry the same `app: <fullname>` label as api/worker — so inheriting the
+# canonical HA podAntiAffinity rule would bar db-migrate from every node
+# already running an app pod, causing that same deadlock. Set either field
+# under `hooks.defaults` / `hooks.jobs.<name>` to opt in deliberately.
 #
 # Overridable at: api.*, worker.queueDefaults.* / worker.queues.<name>.*,
 # worker.addonDefaults.* / worker.addons.<name>.*,
@@ -380,7 +388,10 @@ hooks:
     extraEnv: {}
     annotations: {}
     # Pod scheduling for every hook job; a per-job value replaces this per field.
-    # See the root `nodeSelector` block for the full contract.
+    # See the root `nodeSelector` block for the full contract. Hooks are the one
+    # exception to root inheritance: they pick up root nodeSelector/tolerations,
+    # but affinity/topologySpreadConstraints ONLY from here or a per-job value —
+    # a root podAntiAffinity on the shared `app` label would strand db-migrate.
     # nodeSelector: {}
     # tolerations: []
     # affinity: {}

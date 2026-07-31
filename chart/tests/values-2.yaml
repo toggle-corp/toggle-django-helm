@@ -21,7 +21,8 @@ podVolumeMounts:
     readOnly: true
 
 # Root scheduling: inherited by every pod unless a lower level replaces the field.
-# hooks/ pods set nothing below, so they render these verbatim.
+# hooks/ pods set nothing below, so they render nodeSelector/tolerations
+# verbatim — but NOT the affinity, which hook pods never inherit from root.
 nodeSelector:
   pool: app
 tolerations:
@@ -29,6 +30,15 @@ tolerations:
     operator: Equal
     value: app
     effect: NoSchedule
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app: my-release-banjo-helm
 
 image:
   name: ghcr.io/example/example
@@ -205,6 +215,9 @@ cronjobs:
     # Batch pool for every cronjob, replacing the root nodeSelector.
     nodeSelector:
       pool: batch
+    # ...and an explicit empty value clears the inherited root tolerations,
+    # so batch jobs are not admitted to the tainted app pool.
+    tolerations: []
     resources:
       requests:
         cpu: "1"

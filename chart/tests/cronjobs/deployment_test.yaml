@@ -345,6 +345,42 @@ tests:
       - notExists:
           path: spec.nodeSelector
 
+  # Resolution is presence-based, not truthiness-based: an explicitly empty
+  # value at a lower level clears the inherited one. Without this, a root that
+  # pins every pod to a GPU pool leaves batch jobs no way to run anywhere.
+  - it: should let an empty value clear an inherited scheduling field
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      nodeSelector:
+        pool: gpu
+      tolerations:
+        - key: dedicated
+          operator: Equal
+          value: gpu
+          effect: NoSchedule
+      cronjobs:
+        enabled: true
+        defaults:
+          nodeSelector: {}
+        jobs:
+          nightly-report:
+            enabled: true
+            schedule: "0 2 * * *"
+            command: ["./manage.py", "report"]
+    asserts:
+      - notExists:
+          path: spec.jobTemplate.spec.template.spec.nodeSelector
+      # clearing one field must not disturb the others
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.tolerations
+          value:
+            - key: dedicated
+              operator: Equal
+              value: gpu
+              effect: NoSchedule
+
   - it: should emit no scheduling fields on job pods when none are configured
     set:
       image:

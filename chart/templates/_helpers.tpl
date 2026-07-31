@@ -289,24 +289,35 @@ Generate default labels for app deployments
 
 {{/*
 Resolve pod scheduling fields (where a pod is allowed to run) for one workload.
-Usage: include "banjo.schedulingConfig" (dict "Default" $defaults "Override" $config "Context" $)
+
+Each of the four fields resolves independently, and the nearest level that
+*mentions* the field wins outright (no deep merge) — so an explicitly empty
+value at a lower level clears an inherited one. Levels, nearest first:
+per-item override -> component defaults -> root .Values.
+
+RootFields (optional) limits which fields fall back to root. Hook Jobs pass
+just the permissive two: they carry the same `app: <fullname>` label as
+api/worker, so inheriting a root podAntiAffinity would bar db-migrate from
+every node already running an app pod and deadlock the sync at wave 20.
+Anything set explicitly under hooks/ still applies — this only gates root.
+
+Usage: include "banjo.schedulingConfig" (dict "Default" $defaults "Override" $config "Context" $ [ "RootFields" <list> ])
 */}}
 {{- define "banjo.schedulingConfig" -}}
+{{- $fields := list "nodeSelector" "tolerations" "affinity" "topologySpreadConstraints" -}}
+{{- $rootFields := .RootFields | default $fields -}}
 {{- $root := .Context.Values -}}
 {{- $override := default dict .Override -}}
 {{- $default := default dict .Default -}}
 {{- $out := list -}}
-{{- with $override.nodeSelector | default $default.nodeSelector | default $root.nodeSelector -}}
-{{- $out = append $out (printf "nodeSelector:\n%s" (toYaml . | indent 2)) -}}
+{{- range $f := $fields -}}
+{{- $val := "" -}}
+{{- if and (has $f $rootFields) (hasKey $root $f) }}{{- $val = get $root $f -}}{{- end -}}
+{{- if hasKey $default $f }}{{- $val = get $default $f -}}{{- end -}}
+{{- if hasKey $override $f }}{{- $val = get $override $f -}}{{- end -}}
+{{- with $val -}}
+{{- $out = append $out (printf "%s:\n%s" $f (toYaml . | indent 2)) -}}
 {{- end -}}
-{{- with $override.tolerations | default $default.tolerations | default $root.tolerations -}}
-{{- $out = append $out (printf "tolerations:\n%s" (toYaml . | indent 2)) -}}
-{{- end -}}
-{{- with $override.affinity | default $default.affinity | default $root.affinity -}}
-{{- $out = append $out (printf "affinity:\n%s" (toYaml . | indent 2)) -}}
-{{- end -}}
-{{- with $override.topologySpreadConstraints | default $default.topologySpreadConstraints | default $root.topologySpreadConstraints -}}
-{{- $out = append $out (printf "topologySpreadConstraints:\n%s" (toYaml . | indent 2)) -}}
 {{- end -}}
 {{- join "\n" $out -}}
 {{- end }}
