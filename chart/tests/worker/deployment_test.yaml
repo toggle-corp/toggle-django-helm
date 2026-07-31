@@ -857,3 +857,23 @@ tests:
           path: spec.template.spec.affinity
       - notExists:
           path: spec.template.spec.topologySpreadConstraints
+
+  # worker.image IS read at this level, so worker.nodeSelector looks plausible
+  # and would otherwise be a silent no-op — the benchmark reads fine while
+  # nothing was actually pinned. Fail loudly instead.
+  - it: fails when a scheduling key sits at worker.* instead of worker.queueDefaults.*
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        nodeSelector:
+          pool: bench
+        queues:
+          default:
+            enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.nodeSelector is not read by the chart — set it under worker.queueDefaults (queues) or worker.addonDefaults (addons)"

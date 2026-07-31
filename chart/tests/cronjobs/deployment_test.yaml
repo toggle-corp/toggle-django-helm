@@ -402,3 +402,22 @@ tests:
           path: spec.jobTemplate.spec.template.spec.affinity
       - notExists:
           path: spec.jobTemplate.spec.template.spec.topologySpreadConstraints
+
+  - it: fails when a scheduling key sits at cronjobs.* instead of cronjobs.defaults.*
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        tolerations:
+          - key: dedicated
+            operator: Exists
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "cronjobs.tolerations is not read by the chart — set it under cronjobs.defaults"

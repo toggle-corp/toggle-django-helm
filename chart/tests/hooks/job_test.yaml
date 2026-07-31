@@ -579,3 +579,20 @@ tests:
           path: spec.template.spec.affinity
       - notExists:
           path: spec.template.spec.topologySpreadConstraints
+
+  - it: fails when a scheduling key sits at hooks.* instead of hooks.defaults.*
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        nodeSelector:
+          pool: hooks
+        jobs:
+          db-migrate:
+            enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "hooks.nodeSelector is not read by the chart — set it under hooks.defaults"

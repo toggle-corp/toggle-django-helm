@@ -288,6 +288,25 @@ Generate default labels for app deployments
 {{- end }}
 
 {{/*
+Fail on a scheduling key placed at a level the chart never reads.
+
+worker/cronjobs/hooks take their component-wide values from a `defaults`
+sibling, but sit next to keys that ARE read at the parent level (worker.image,
+worker.enabled), so a misplaced nodeSelector looks entirely plausible. Left
+silent it is the worst failure mode available: the render succeeds, the pods
+schedule anywhere, and nothing says the pinning did not take.
+Usage: include "banjo.assertNoStraySchedulingKeys" (dict "Block" .Values.worker "Path" "worker" "Hint" "...")
+*/}}
+{{- define "banjo.assertNoStraySchedulingKeys" -}}
+{{- $block := default dict .Block -}}
+{{- range $f := (list "nodeSelector" "tolerations" "affinity" "topologySpreadConstraints") -}}
+{{- if hasKey $block $f -}}
+{{- fail (printf "%s.%s is not read by the chart — %s" $.Path $f $.Hint) -}}
+{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Resolve pod scheduling fields (where a pod is allowed to run) for one workload.
 
 Each of the four fields resolves independently, and the nearest level that

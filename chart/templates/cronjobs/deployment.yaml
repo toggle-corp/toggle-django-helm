@@ -1,3 +1,4 @@
+{{- include "banjo.assertNoStraySchedulingKeys" (dict "Block" .Values.cronjobs "Path" "cronjobs" "Hint" "set it under cronjobs.defaults") -}}
 {{- if .Values.cronjobs.enabled }}
 
 {{- $defaults := default dict .Values.cronjobs.defaults -}}
