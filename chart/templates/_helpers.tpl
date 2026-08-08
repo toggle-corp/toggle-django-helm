@@ -257,6 +257,24 @@ annotations:
 {{- end }}
 
 {{/*
+Resource-level annotations for one CronJob: a per-job map merged key-wise over
+cronjobs.defaults, per-job winning.
+
+Emits no reloader.stakater.com/auto — a CronJob reads its ConfigMap/Secret on
+every fire, so there is no running pod to restart.
+
+Body-only: emits the `annotations:` key, guards emptiness, caller indents.
+Usage: include "banjo.cronjobAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations)
+*/}}
+{{- define "banjo.cronjobAnnotations" -}}
+{{- $ann := merge (deepCopy (default (dict) .Override)) (default (dict) .Default) -}}
+{{- if $ann -}}
+annotations:
+  {{- toYaml $ann | nindent 2 }}
+{{- end -}}
+{{- end }}
+
+{{/*
 Generate default annotations for app pods
 */}}
 {{- define "banjo.appDefaultAnnotations" -}}
@@ -303,11 +321,34 @@ schedule anywhere, and nothing says the pinning did not take.
 Usage: include "banjo.assertNoStraySchedulingKeys" (dict "Block" .Values.worker "Path" "worker" "Hint" "...")
 */}}
 {{- define "banjo.assertNoStraySchedulingKeys" -}}
+{{- include "banjo.assertNoStrayKeys" (dict
+    "Block" .Block "Path" .Path "Hint" .Hint
+    "Fields" (list "nodeSelector" "tolerations" "affinity" "topologySpreadConstraints")) -}}
+{{- end }}
+
+{{/*
+Fail on any of `Fields` present in `Block` — a key at a level the chart never
+reads, where the render succeeds and the setting does nothing.
+Usage: include "banjo.assertNoStrayKeys" (dict "Block" $b "Path" "cronjobs" "Fields" (list "x") "Hint" "...")
+*/}}
+{{- define "banjo.assertNoStrayKeys" -}}
 {{- $block := default dict .Block -}}
-{{- range $f := (list "nodeSelector" "tolerations" "affinity" "topologySpreadConstraints") -}}
+{{- range $f := .Fields -}}
 {{- if hasKey $block $f -}}
 {{- fail (printf "%s.%s is not read by the chart — %s" $.Path $f $.Hint) -}}
 {{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
+Fail on an ArgoCD sync-wave in a pod-level annotations map. ArgoCD reads
+sync-wave from the resource, not from a pod template, so such a value renders
+successfully and orders nothing.
+Usage: include "banjo.assertNoInertSyncWave" (dict "Annotations" $map "Path" "cronjobs.defaults")
+*/}}
+{{- define "banjo.assertNoInertSyncWave" -}}
+{{- if hasKey (default dict .Annotations) "argocd.argoproj.io/sync-wave" -}}
+{{- fail (printf "%s.annotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under %s.cronjobAnnotations" .Path .Path) -}}
 {{- end -}}
 {{- end }}
 

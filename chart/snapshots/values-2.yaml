@@ -1179,6 +1179,8 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: release-name-banjo-helm-job-dummy-01
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
   labels:
     app: release-name-banjo-helm
     component: cronjob
@@ -1280,6 +1282,9 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: release-name-banjo-helm-job-dummy-02
+  annotations:
+    argocd.argoproj.io/sync-wave: "30"
+    example.com/owner: data-platform
   labels:
     app: release-name-banjo-helm
     component: cronjob

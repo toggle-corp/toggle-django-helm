@@ -339,7 +339,28 @@ cronjobs:
       # imagePullPolicy: IfNotPresent
       # imagePullSecrets:
     extraEnv: {}
+    # Pod-level annotations, applied to the CronJob's job pods. A sync-wave here
+    # would be inert — put it in cronjobAnnotations below (the chart fails fast
+    # if you get this wrong).
     annotations: {}
+    # Resource-level annotations, applied to the CronJob object itself. A per-job
+    # `cronjobAnnotations` map merges key-wise over this one.
+    #
+    # Defaulted to the ArgoCD sync-wave so CronJobs are only applied once the
+    # wave-10/20 hooks have succeeded. NOTE: the wave defers when ArgoCD
+    # *applies* the CronJob; it does not suspend one that is already applied.
+    # During a wave-20 migration the previous image can still fire, so migrations
+    # must stay backward-compatible with the N-1 image — the same constraint api
+    # lives under during a rolling update.
+    #
+    # `-f` overlays and `--set` deep-merge into this map rather than replacing
+    # it: an unrelated key leaves the wave intact, and `cronjobAnnotations: {}`
+    # does NOT clear it. To drop the wave, null that key explicitly in an overlay
+    # (`argocd.argoproj.io/sync-wave: null`); the whole `annotations:` stanza is
+    # omitted once nothing is left. To change it via `--set`, quote the value —
+    # an unquoted `...sync-wave=99` renders an integer, which k8s rejects.
+    cronjobAnnotations:
+      argocd.argoproj.io/sync-wave: "30"
     # Default k8s CronJob keeps 3 successful + 1 failed. Tighten by default.
     successfulJobsHistoryLimit: 1
     failedJobsHistoryLimit: 1
@@ -369,7 +390,11 @@ cronjobs:
     #   timeZone: "Asia/Kathmandu"
     #   enabled: false
     #   extraEnv: {}
-    #   annotations: {}
+    #   annotations: {}  # pod-level
+    #   # Resource-level; merges key-wise over cronjobs.defaults.cronjobAnnotations,
+    #   # so the inherited sync-wave survives unless you name that key here.
+    #   cronjobAnnotations:
+    #     example.com/owner: "data-platform"
     #   # Per-job overrides — fall back to cronjobs.defaults.* when unset.
     #   successfulJobsHistoryLimit: 1
     #   failedJobsHistoryLimit: 1
@@ -412,10 +437,14 @@ hooks:
   #             before the next wave, so nothing here needs a sync-wave annotation.
   #   wave 10 : wait-for-resources — app-side config/connectivity validation.
   #   wave 20 : db-migrate, collect-static — schema + static, run only after deps healthy.
-  #   wave 30 : api, worker, beat, ingress — set via the resource-level
+  #   wave 30 : api, worker, beat, ingress, cronjobs — set via the resource-level
   #             `argocd.argoproj.io/sync-wave` default on `api.deploymentAnnotations`,
   #             `worker.queueDefaults.deploymentAnnotations`,
-  #             `worker.addonDefaults.deploymentAnnotations`, and `api.ingress.annotations`.
+  #             `worker.addonDefaults.deploymentAnnotations`, `api.ingress.annotations`,
+  #             and `cronjobs.defaults.cronjobAnnotations`. For cronjobs the wave only
+  #             defers when the CronJob is *applied* — it does not suspend one that is
+  #             already applied, so a pre-existing CronJob can still fire the previous
+  #             image during a wave-20 migration.
   # Hooks are `hook: Sync` (NOT PreSync — PreSync runs before deps are even applied and
   # would deadlock on bootstrap; NOT PostSync — that runs after api is already serving).
   jobs:

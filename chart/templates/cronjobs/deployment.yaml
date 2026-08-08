@@ -1,7 +1,9 @@
 {{- include "banjo.assertNoStraySchedulingKeys" (dict "Block" .Values.cronjobs "Path" "cronjobs" "Hint" "set it under cronjobs.defaults") -}}
+{{- include "banjo.assertNoStrayKeys" (dict "Block" .Values.cronjobs "Path" "cronjobs" "Fields" (list "cronjobAnnotations") "Hint" "set it under cronjobs.defaults") -}}
 {{- if .Values.cronjobs.enabled }}
 
 {{- $defaults := default dict .Values.cronjobs.defaults -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $defaults.annotations "Path" "cronjobs.defaults") -}}
 {{- $jobs := list -}}
 {{- if kindIs "map" .Values.cronjobs.jobs -}}
   {{- range $name, $cfg := .Values.cronjobs.jobs -}}
@@ -14,6 +16,8 @@
 {{- range $job := $jobs }}
 {{- if $job.enabled }}
 {{- $jobName := $job.name }}
+{{- /* --- render-time validation: fail here, before emitting any doc --- */ -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $job.annotations "Path" (printf "cronjobs.jobs.%s" $jobName)) }}
 
 ---
 # Job: {{ $jobName }}
@@ -21,6 +25,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: {{ template "banjo.fullname" $ }}-job-{{ $jobName | nospace | lower | replace "_" "-" }}
+  {{- with (include "banjo.cronjobAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" $ }}
     component: cronjob

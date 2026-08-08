@@ -240,6 +240,10 @@ cronjobs:
       schedule: "0 0 * * *"
       timeZone: "Asia/Kathmandu"
       command: ["./manage.py", "run-dummy-command", "02"]
+      # Resource-level annotations merge key-wise over cronjobs.defaults, so this
+      # CronJob keeps the chart-default sync-wave and just adds an owner key.
+      cronjobAnnotations:
+        example.com/owner: "data-platform"
     dummy-03:
       enabled: false
       schedule: "* * * * *"

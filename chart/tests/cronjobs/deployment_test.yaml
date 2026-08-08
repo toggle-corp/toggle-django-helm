@@ -403,6 +403,82 @@ tests:
       - notExists:
           path: spec.jobTemplate.spec.template.spec.topologySpreadConstraints
 
+  - it: should ship the ArgoCD sync-wave on CronJob metadata from chart values
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "30"
+
+  - it: should merge per-job cronjobAnnotations key-wise over cronjobs.defaults
+    documentSelector:
+      path: metadata.labels.jobName
+      value: dummy
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        defaults:
+          cronjobAnnotations:
+            example.com/owner: "platform"
+            example.com/tier: "batch"
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            cronjobAnnotations:
+              example.com/tier: "critical"
+              example.com/extra: "added"
+    asserts:
+      # inherited from defaults
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: "platform"
+      # per-job wins for a key present at both levels
+      - equal:
+          path: metadata.annotations["example.com/tier"]
+          value: "critical"
+      # per-job-only key is added, not dropped
+      - equal:
+          path: metadata.annotations["example.com/extra"]
+          value: "added"
+      # the chart-default wave survives a partial defaults override
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "30"
+
+  # CronJobs render through banjo.cronjobAnnotations, not
+  # banjo.appDefaultDeploymentAnnotations, which force-injects the reloader
+  # annotation.
+  - it: should not put the reloader annotation on a CronJob
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - notExists:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+
   - it: fails when a scheduling key sits at cronjobs.* instead of cronjobs.defaults.*
     set:
       image:
@@ -421,3 +497,58 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "cronjobs.tolerations is not read by the chart — set it under cronjobs.defaults"
+
+  - it: fails when cronjobAnnotations sits at cronjobs.* instead of cronjobs.defaults.*
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        cronjobAnnotations:
+          argocd.argoproj.io/sync-wave: "30"
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "cronjobs.cronjobAnnotations is not read by the chart — set it under cronjobs.defaults"
+
+  - it: fails when a sync-wave sits in the pod-level cronjobs.defaults.annotations
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        defaults:
+          annotations:
+            argocd.argoproj.io/sync-wave: "30"
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "cronjobs.defaults.annotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under cronjobs.defaults.cronjobAnnotations"
+
+  - it: fails when a sync-wave sits in a per-job pod-level annotations map
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            annotations:
+              argocd.argoproj.io/sync-wave: "30"
+    asserts:
+      - failedTemplate:
+          errorMessage: "cronjobs.jobs.dummy.annotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under cronjobs.jobs.dummy.cronjobAnnotations"
