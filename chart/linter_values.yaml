@@ -53,7 +53,7 @@ hooks:
     my-custom-command:
       enabled: true
       useGenerateName: true
-      annotations:
+      jobAnnotations:
         argocd.argoproj.io/hook: "PostSync"
         argocd.argoproj.io/sync-wave: "30"
       command: ["/bin/bash", "-c"]
