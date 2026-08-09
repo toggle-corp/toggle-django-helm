@@ -674,3 +674,65 @@ tests:
           path: spec.template.spec.affinity
       - notExists:
           path: spec.template.spec.topologySpreadConstraints
+
+  - it: should merge addonDefaults and per-addon podAnnotations onto the pod template
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          podAnnotations:
+            example.com/owner: "platform"
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            podAnnotations:
+              example.com/tier: "control"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["example.com/owner"]
+          value: "platform"
+      - equal:
+          path: spec.template.metadata.annotations["example.com/tier"]
+          value: "control"
+
+  - it: fails when pod annotations sit at the pre-rename worker.addonDefaults.annotations
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          annotations:
+            example.com/owner: "platform"
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.addonDefaults.annotations is not read by the chart — renamed to podAnnotations"
+
+  - it: fails when pod annotations sit at the pre-rename worker.addons.<name>.annotations
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            annotations:
+              example.com/owner: "platform"
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.addons.beat.annotations is not read by the chart — renamed to podAnnotations"

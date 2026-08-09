@@ -366,7 +366,7 @@ Usage: include "banjo.assertNoInertSyncWave" (dict "Annotations" $map "Path" "cr
 */}}
 {{- define "banjo.assertNoInertSyncWave" -}}
 {{- if hasKey (default dict .Annotations) "argocd.argoproj.io/sync-wave" -}}
-{{- fail (printf "%s.annotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under %s.cronjobAnnotations" .Path .Path) -}}
+{{- fail (printf "%s.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under %s.cronjobAnnotations" .Path .Path) -}}
 {{- end -}}
 {{- end }}
 

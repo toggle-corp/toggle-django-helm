@@ -1,3 +1,4 @@
+{{- include "banjo.assertNoStrayKeys" (dict "Block" .Values.api "Path" "api" "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
 {{- if .Values.api.enabled }}
 
 apiVersion: apps/v1
@@ -23,7 +24,7 @@ spec:
     metadata:
       annotations:
         {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
-        {{- with .Values.api.annotations }}
+        {{- with .Values.api.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:

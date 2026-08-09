@@ -935,3 +935,65 @@ tests:
           content:
             name: SHARED
             value: "from-defaults"
+
+  - it: should merge queueDefaults and per-queue podAnnotations onto the pod template
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          podAnnotations:
+            example.com/owner: "platform"
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            podAnnotations:
+              example.com/tier: "batch"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["example.com/owner"]
+          value: "platform"
+      - equal:
+          path: spec.template.metadata.annotations["example.com/tier"]
+          value: "batch"
+
+  - it: fails when pod annotations sit at the pre-rename worker.queueDefaults.annotations
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          annotations:
+            example.com/owner: "platform"
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.queueDefaults.annotations is not read by the chart — renamed to podAnnotations"
+
+  - it: fails when pod annotations sit at the pre-rename worker.queues.<name>.annotations
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            annotations:
+              example.com/owner: "platform"
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.queues.default.annotations is not read by the chart — renamed to podAnnotations"

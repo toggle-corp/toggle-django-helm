@@ -1,6 +1,7 @@
 {{- if .Values.worker.enabled }}
 
 {{- $defaults := default dict .Values.worker.addonDefaults -}}
+{{- include "banjo.assertNoStrayKeys" (dict "Block" $defaults "Path" "worker.addonDefaults" "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
 {{- $addons := list -}}
 {{- if kindIs "map" .Values.worker.addons -}}
   {{- range $name, $cfg := .Values.worker.addons -}}
@@ -13,6 +14,7 @@
 {{- range $addon := $addons }}
 {{- if $addon.enabled }}
 {{- $addon_name := $addon.name }}
+{{- include "banjo.assertNoStrayKeys" (dict "Block" $addon "Path" (printf "worker.addons.%s" $addon_name) "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
 {{- $extraVolumes := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumes "Override" $addon.volumes)) }}
 {{- $extraVolumeMounts := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumeMounts "Override" $addon.volumeMounts)) }}
 
@@ -52,10 +54,10 @@ spec:
     metadata:
       annotations:
         {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
-        {{- with $defaults.annotations }}
+        {{- with $defaults.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- with $addon.annotations }}
+        {{- with $addon.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:

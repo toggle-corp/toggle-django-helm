@@ -2,6 +2,7 @@
 {{- if .Values.worker.enabled }}
 
 {{- $defaults := default dict .Values.worker.queueDefaults -}}
+{{- include "banjo.assertNoStrayKeys" (dict "Block" $defaults "Path" "worker.queueDefaults" "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
 {{- $queues := list -}}
 {{- if kindIs "map" .Values.worker.queues -}}
   {{- range $name, $cfg := .Values.worker.queues -}}
@@ -14,6 +15,7 @@
 {{- range $config := $queues }}
 {{- if $config.enabled }}
 {{- $queue_name := $config.name }}
+{{- include "banjo.assertNoStrayKeys" (dict "Block" $config "Path" (printf "worker.queues.%s" $queue_name) "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
 {{- $extraVolumes := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumes "Override" $config.volumes)) }}
 {{- $extraVolumeMounts := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumeMounts "Override" $config.volumeMounts)) }}
 
@@ -53,10 +55,10 @@ spec:
     metadata:
       annotations:
         {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
-        {{- with $defaults.annotations }}
+        {{- with $defaults.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- with $config.annotations }}
+        {{- with $config.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:

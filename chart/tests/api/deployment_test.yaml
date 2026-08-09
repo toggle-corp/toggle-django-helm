@@ -192,7 +192,22 @@ tests:
       - notExists:
           path: spec.template.spec.containers[0].command
 
-  - it: should merge api.annotations onto pod template metadata
+  - it: should merge api.podAnnotations onto pod template metadata
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        podAnnotations:
+          custom.annotation/key: "custom-value"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["custom.annotation/key"]
+          value: "custom-value"
+
+  - it: fails when pod annotations sit at the pre-rename api.annotations
     template: templates/api/deployment.yaml
     set:
       image:
@@ -203,9 +218,8 @@ tests:
         annotations:
           custom.annotation/key: "custom-value"
     asserts:
-      - equal:
-          path: spec.template.metadata.annotations["custom.annotation/key"]
-          value: "custom-value"
+      - failedTemplate:
+          errorMessage: "api.annotations is not read by the chart — renamed to podAnnotations"
 
   - it: should render api.extraEnv as inline pod env vars
     template: templates/api/deployment.yaml

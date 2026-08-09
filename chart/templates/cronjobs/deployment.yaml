@@ -3,7 +3,8 @@
 {{- if .Values.cronjobs.enabled }}
 
 {{- $defaults := default dict .Values.cronjobs.defaults -}}
-{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $defaults.annotations "Path" "cronjobs.defaults") -}}
+{{- include "banjo.assertNoStrayKeys" (dict "Block" $defaults "Path" "cronjobs.defaults" "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $defaults.podAnnotations "Path" "cronjobs.defaults") -}}
 {{- $jobs := list -}}
 {{- if kindIs "map" .Values.cronjobs.jobs -}}
   {{- range $name, $cfg := .Values.cronjobs.jobs -}}
@@ -17,7 +18,8 @@
 {{- if $job.enabled }}
 {{- $jobName := $job.name }}
 {{- /* --- render-time validation: fail here, before emitting any doc --- */ -}}
-{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $job.annotations "Path" (printf "cronjobs.jobs.%s" $jobName)) }}
+{{- include "banjo.assertNoStrayKeys" (dict "Block" $job "Path" (printf "cronjobs.jobs.%s" $jobName) "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $job.podAnnotations "Path" (printf "cronjobs.jobs.%s" $jobName)) }}
 
 ---
 # Job: {{ $jobName }}
@@ -52,10 +54,10 @@ spec:
             {{- with $.Values.podAnnotations }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-            {{- with $defaults.annotations }}
+            {{- with $defaults.podAnnotations }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-            {{- with $job.annotations }}
+            {{- with $job.podAnnotations }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
           labels:

@@ -98,7 +98,7 @@ api:
     argocd.argoproj.io/sync-wave: "30"
   # Per-component annotations merged into the pod template
   # (spec.template.metadata.annotations), NOT the Deployment resource.
-  annotations: {}
+  podAnnotations: {}
   # Per-component inline env. tpl-evaluated. Layered on top of the global
   # env: ConfigMap (envFrom) — item entries override global on key conflict.
   # A per-item `KEY: null` drops the key rather than overriding it, so an item
@@ -203,7 +203,7 @@ worker:
       argocd.argoproj.io/sync-wave: "30"
     # Per-component annotations merged into the pod template
     # (spec.template.metadata.annotations), NOT the Deployment resource.
-    annotations: {}
+    podAnnotations: {}
     # Deployment update strategy. Whole-block override (coalesced, NOT merged):
     # a per-queue strategy replaces this entirely. Singletons (e.g. beat) should
     # set `{type: Recreate}` to never run two pods during a rollout.
@@ -261,7 +261,7 @@ worker:
     #   # replicaCount: 1     # omit to let KEDA scale; set for static count
     #   celeryArgs: ["-Q", "celery", "--concurrency", "4", "--max-tasks-per-child", "10"]
     #   # extraEnv: {}        # merged onto queueDefaults.extraEnv (per-queue wins)
-    #   # annotations: {}
+    #   # podAnnotations: {}
     #   # resources: {}
 
   # Defaults applied to each worker addon (beat, flower, exporters, etc.).
@@ -276,7 +276,7 @@ worker:
       argocd.argoproj.io/sync-wave: "30"
     # Per-component annotations merged into the pod template
     # (spec.template.metadata.annotations), NOT the Deployment resource.
-    annotations: {}
+    podAnnotations: {}
     # Pod volumes / container mounts. Dict to merge by name, array to reset.
     volumes: {}
     volumeMounts: {}
@@ -353,7 +353,7 @@ cronjobs:
     # Pod-level annotations, applied to the CronJob's job pods. A sync-wave here
     # would be inert — put it in cronjobAnnotations below (the chart fails fast
     # if you get this wrong).
-    annotations: {}
+    podAnnotations: {}
     # Resource-level annotations, applied to the CronJob object itself. A per-job
     # `cronjobAnnotations` map merges key-wise over this one, and a per-job
     # `KEY: null` drops the key rather than shadowing it. Values follow the
@@ -402,7 +402,7 @@ cronjobs:
     #   timeZone: "Asia/Kathmandu"
     #   enabled: false
     #   extraEnv: {}
-    #   annotations: {}  # pod-level
+    #   podAnnotations: {}
     #   # Resource-level; merges key-wise over cronjobs.defaults.cronjobAnnotations,
     #   # so the inherited sync-wave survives unless you name that key here.
     #   cronjobAnnotations:

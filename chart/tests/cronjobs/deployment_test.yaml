@@ -574,7 +574,7 @@ tests:
       - failedTemplate:
           errorMessage: "cronjobs.cronjobAnnotations is not read by the chart — set it under cronjobs.defaults"
 
-  - it: fails when a sync-wave sits in the pod-level cronjobs.defaults.annotations
+  - it: fails when a sync-wave sits in the pod-level cronjobs.defaults.podAnnotations
     set:
       image:
         name: ghcr.io/example/app
@@ -582,7 +582,7 @@ tests:
       cronjobs:
         enabled: true
         defaults:
-          annotations:
+          podAnnotations:
             argocd.argoproj.io/sync-wave: "30"
         jobs:
           dummy:
@@ -591,9 +591,46 @@ tests:
             command: ["./manage.py"]
     asserts:
       - failedTemplate:
-          errorMessage: "cronjobs.defaults.annotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under cronjobs.defaults.cronjobAnnotations"
+          errorMessage: "cronjobs.defaults.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under cronjobs.defaults.cronjobAnnotations"
 
-  - it: fails when a sync-wave sits in a per-job pod-level annotations map
+  - it: fails when a sync-wave sits in a per-job pod-level podAnnotations map
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            podAnnotations:
+              argocd.argoproj.io/sync-wave: "30"
+    asserts:
+      - failedTemplate:
+          errorMessage: "cronjobs.jobs.dummy.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under cronjobs.jobs.dummy.cronjobAnnotations"
+
+  - it: fails when pod annotations sit at the pre-rename cronjobs.defaults.annotations
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        defaults:
+          annotations:
+            example.com/owner: "platform"
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "cronjobs.defaults.annotations is not read by the chart — renamed to podAnnotations"
+
+  - it: fails when pod annotations sit at the pre-rename cronjobs.jobs.<name>.annotations
     set:
       image:
         name: ghcr.io/example/app
@@ -606,7 +643,7 @@ tests:
             schedule: "0 0 * * *"
             command: ["./manage.py"]
             annotations:
-              argocd.argoproj.io/sync-wave: "30"
+              example.com/owner: "platform"
     asserts:
       - failedTemplate:
-          errorMessage: "cronjobs.jobs.dummy.annotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under cronjobs.jobs.dummy.cronjobAnnotations"
+          errorMessage: "cronjobs.jobs.dummy.annotations is not read by the chart — renamed to podAnnotations"
