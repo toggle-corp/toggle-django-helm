@@ -10,6 +10,7 @@ metadata:
     component: api
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
+    {{- with (include "banjo.commonLabels" $) -}}{{ . | nindent 4 }}{{- end }}
 spec:
   type: ClusterIP
   selector:

@@ -1,4 +1,4 @@
-suite: commonAnnotations tests
+suite: commonAnnotations and commonLabels tests
 templates:
   - templates/api/deployment.yaml
   - templates/api/service.yaml
@@ -180,3 +180,98 @@ tests:
       - equal:
           path: metadata.annotations["reloader.stakater.com/auto"]
           value: "false"
+
+  - it: should render commonLabels on the api Deployment, Service and Ingress
+    templates:
+      - templates/api/deployment.yaml
+      - templates/api/service.yaml
+      - templates/api/ingress.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonLabels:
+        example.com/owner: "platform"
+        example.com/replicas: 3
+      api:
+        enabled: true
+        ingress:
+          enabled: true
+          host: myapp.example.com
+    asserts:
+      - equal:
+          path: metadata.labels["example.com/owner"]
+          value: "platform"
+      - equal:
+          path: metadata.labels["example.com/replicas"]
+          value: "3"
+      # the chart's own labels survive alongside
+      - equal:
+          path: metadata.labels.component
+          value: api
+
+  - it: should keep commonLabels off the pod template and the selector
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonLabels:
+        example.com/owner: "platform"
+      api:
+        enabled: true
+    asserts:
+      - notExists:
+          path: spec.template.metadata.labels["example.com/owner"]
+      - notExists:
+          path: spec.selector.matchLabels["example.com/owner"]
+
+  - it: should merge commonLabels with api.ingress.labels, ingress winning
+    template: templates/api/ingress.yaml
+    set:
+      commonLabels:
+        example.com/owner: "from-common"
+        example.com/team: "from-common"
+      api:
+        enabled: true
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          labels:
+            example.com/owner: "from-ingress"
+    asserts:
+      - equal:
+          path: metadata.labels["example.com/owner"]
+          value: "from-ingress"
+      - equal:
+          path: metadata.labels["example.com/team"]
+          value: "from-common"
+
+  - it: should merge commonLabels with serviceAccount.labels, serviceAccount winning
+    template: templates/api/service-account.yaml
+    set:
+      serviceAccount:
+        create: true
+        labels:
+          example.com/owner: "from-sa"
+      commonLabels:
+        example.com/owner: "from-common"
+        example.com/team: "from-common"
+    asserts:
+      - equal:
+          path: metadata.labels["example.com/owner"]
+          value: "from-sa"
+      - equal:
+          path: metadata.labels["example.com/team"]
+          value: "from-common"
+
+  # The guard lives in banjo.commonLabels, so it fires from whichever template
+  # renders first — scoped here to keep the assertion stable.
+  - it: fails when commonLabels names a label the chart sets itself
+    template: templates/hooks/job.yaml
+    set:
+      commonLabels:
+        component: "mine"
+    asserts:
+      - failedTemplate:
+          errorMessage: "commonLabels.component collides with a label the chart sets itself — pick another key"

@@ -335,6 +335,29 @@ Usage: include "banjo.tplAnnotations" (dict "Annotations" $map "Context" $)
 {{- end }}
 
 {{/*
+Chart-wide `commonLabels`, rendered onto every resource's own metadata beside
+the labels the chart sets itself. Values go through `banjo.tplAnnotations`.
+
+Fails on a key the chart already sets: the two would render as duplicate YAML
+keys, and the chart's own labels are what its Deployment selectors match on.
+`commonLabels` never reaches a pod template — `spec.selector.matchLabels` is
+immutable once applied, so a changed label would break the upgrade. Use
+`podLabels` for pod-template labels.
+
+Body-only, and empty in, empty out — the caller emits the `labels:` key.
+Usage: include "banjo.commonLabels" $
+*/}}
+{{- define "banjo.commonLabels" -}}
+{{- $labels := default dict .Values.commonLabels -}}
+{{- range $k := list "app" "component" "environment" "release" "queue" "addon" "jobName" "hookName" -}}
+{{- if hasKey $labels $k -}}
+{{- fail (printf "commonLabels.%s collides with a label the chart sets itself — pick another key" $k) -}}
+{{- end -}}
+{{- end -}}
+{{- include "banjo.tplAnnotations" (dict "Annotations" $labels "Context" .) -}}
+{{- end }}
+
+{{/*
 Root `podLabels`, rendered onto every pod template the chart emits. Values go
 through `banjo.tplAnnotations`, so a non-string label value lands as the string
 k8s requires and a null drops its key.

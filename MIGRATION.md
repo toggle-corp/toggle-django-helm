@@ -53,6 +53,8 @@ Every key path shown as an "after" state in this doc is a 0.5.0 path.
 | `hooks.defaults.jobAnnotations` | Job-level annotations for every hook; a per-job `jobAnnotations` merges over it key-wise. |
 | `hooks.jobs.<X>.podAnnotations` | Per-job pod annotations. |
 | `cronjobs.defaults.cronjobAnnotations` | Resource-level CronJob annotations, defaulted to `argocd.argoproj.io/sync-wave: "30"`. See behavioral note 9. |
+| `commonAnnotations` | Chart-wide, on every rendered resource's own metadata. Component keys overlay it. |
+| `commonLabels` | Chart-wide labels, same reach. Resource metadata only — never a pod template, since `spec.selector.matchLabels` is immutable. Naming a label the chart sets itself (`app`, `component`, `environment`, `release`, `queue`, `addon`, `jobName`, `hookName`) fails the render. |
 
 ### Value contract (all annotation, label and `extraEnv` maps)
 
@@ -64,10 +66,11 @@ Applies to: every `*Annotations` key, `podLabels`, `api.ingress.labels`, `servic
 
 ### Guards
 
-Two render-time failures are new. Both catch a setting that would otherwise render fine and do nothing:
+Three render-time failures are new. Each catches a setting that would otherwise render fine and misbehave:
 
 - An `argocd.argoproj.io/sync-wave` in any **pod-level** map fails. ArgoCD reads the wave off the resource, never off a pod template. A component `podAnnotations` points you at that component's resource-level key; the root `podAnnotations` points at `commonAnnotations`.
 - `cronjobs.cronjobAnnotations` at the parent level (rather than under `cronjobs.defaults`) fails.
+- `commonLabels` naming a label the chart sets itself fails.
 
 ---
 

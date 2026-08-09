@@ -9,7 +9,9 @@ metadata:
     component: api
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
-    {{- with (include "banjo.tplAnnotations" (dict "Annotations" .Values.api.ingress.labels "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
+    {{- $ingLabels := deepCopy (default (dict) .Values.commonLabels) -}}
+    {{- range $k, $v := (default (dict) .Values.api.ingress.labels) }}{{- $_ := set $ingLabels $k $v -}}{{- end }}
+    {{- with (include "banjo.tplAnnotations" (dict "Annotations" $ingLabels "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
   {{- with (include "banjo.resourceAnnotations" (dict "Override" .Values.api.ingress.annotations "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
 spec:
   {{- with .Values.api.ingress.className }}

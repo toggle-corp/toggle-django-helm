@@ -9,6 +9,8 @@ podAnnotations:
 # and on none of the pod templates. extraManifests below stay untouched.
 commonAnnotations:
   example.com/owner: "platform"
+commonLabels:
+  example.com/tier: "backend"
 
 image:
   name: ghcr.io/example/example

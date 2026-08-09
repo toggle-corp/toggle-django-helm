@@ -10,6 +10,7 @@ metadata:
     app: release-name-banjo-helm
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 type: Opaque
 stringData:
   # secrets
@@ -38,6 +39,7 @@ metadata:
     app: release-name-banjo-helm
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 data:
   # Configs
   ENV_1: "VALUE_1"
@@ -75,6 +77,7 @@ metadata:
     component: api
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 spec:
   type: ClusterIP
   selector:
@@ -100,6 +103,7 @@ metadata:
     addon: flower
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 spec:
   type: ClusterIP
   selector:
@@ -126,6 +130,7 @@ metadata:
     component: api
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 spec:
   revisionHistoryLimit: 1
   selector:
@@ -135,8 +140,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
-        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
+        checksum/secret: c2d0793f4452a9243fbb054b2ef3ebee984eea9cd8e68335c67e6d648377408a
+        checksum/configmap: 6b81509bd4c315ed8807a5aeb74d9b8e6232d4673de5106bb2a02b51d8f0a233
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -189,6 +194,7 @@ metadata:
     addon: flower
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 spec:
   revisionHistoryLimit: 1
   selector:
@@ -199,8 +205,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
-        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
+        checksum/secret: c2d0793f4452a9243fbb054b2ef3ebee984eea9cd8e68335c67e6d648377408a
+        checksum/configmap: 6b81509bd4c315ed8807a5aeb74d9b8e6232d4673de5106bb2a02b51d8f0a233
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -254,6 +260,7 @@ metadata:
     queue: array-form-queue
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 spec:
   revisionHistoryLimit: 1
   selector:
@@ -264,8 +271,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
-        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
+        checksum/secret: c2d0793f4452a9243fbb054b2ef3ebee984eea9cd8e68335c67e6d648377408a
+        checksum/configmap: 6b81509bd4c315ed8807a5aeb74d9b8e6232d4673de5106bb2a02b51d8f0a233
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -320,12 +327,13 @@ metadata:
     hookName: collect-static
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
-        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
+        checksum/secret: c2d0793f4452a9243fbb054b2ef3ebee984eea9cd8e68335c67e6d648377408a
+        checksum/configmap: 6b81509bd4c315ed8807a5aeb74d9b8e6232d4673de5106bb2a02b51d8f0a233
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -373,14 +381,15 @@ metadata:
     hookName: db-migrate
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 spec:
   activeDeadlineSeconds: 3600
   ttlSecondsAfterFinished: 604800
   template:
     metadata:
       annotations:
-        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
-        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
+        checksum/secret: c2d0793f4452a9243fbb054b2ef3ebee984eea9cd8e68335c67e6d648377408a
+        checksum/configmap: 6b81509bd4c315ed8807a5aeb74d9b8e6232d4673de5106bb2a02b51d8f0a233
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -428,12 +437,13 @@ metadata:
     hookName: wait-for-resources
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
 spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
-        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
+        checksum/secret: c2d0793f4452a9243fbb054b2ef3ebee984eea9cd8e68335c67e6d648377408a
+        checksum/configmap: 6b81509bd4c315ed8807a5aeb74d9b8e6232d4673de5106bb2a02b51d8f0a233
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -476,6 +486,7 @@ metadata:
     component: api
     environment: ALPHA
     release: release-name
+    example.com/tier: backend
   annotations:
     argocd.argoproj.io/sync-wave: "30"
     example.com/owner: platform

@@ -17,6 +17,17 @@ revisionHistoryLimit: 1
 # Does not reach `extraManifests` — those render verbatim.
 commonAnnotations: {}
 
+# Applied to every resource the chart renders, beside the labels the chart sets
+# itself (`app`, `component`, `environment`, `release`, and the per-item `queue`
+# / `addon` / `jobName` / `hookName`). Naming one of those here fails the render.
+#
+# Resource metadata only — NOT pod templates. A Deployment's
+# `spec.selector.matchLabels` is immutable once applied, so a chart-wide label
+# that reached the pod template would break the next upgrade. Use `podLabels`
+# below for pod-template labels. Values follow the `api.ingress.annotations`
+# contract, and `extraManifests` are untouched.
+commonLabels: {}
+
 # Applied to every pod template the chart renders. Per-component `podAnnotations`
 # overlay these key-wise, and a component-level `KEY: null` drops an entry set
 # here. Values follow the `api.ingress.annotations` contract below: strings are
