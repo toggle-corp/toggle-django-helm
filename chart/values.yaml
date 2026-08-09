@@ -126,6 +126,9 @@ api:
   # are tpl-evaluated, non-strings render as JSON, `KEY: null` drops the key.
   deploymentAnnotations:
     argocd.argoproj.io/sync-wave: "30"
+  # Resource-level labels on the Deployment object, layered over commonLabels.
+  # Never reaches the pod template — see commonLabels at the top of this file.
+  deploymentLabels: {}
   # Per-component annotations merged into the pod template
   # (spec.template.metadata.annotations), NOT the Deployment resource. A
   # sync-wave here would be inert — put it in deploymentAnnotations above.
@@ -234,6 +237,9 @@ worker:
     # Values follow the `api.ingress.annotations` contract above.
     deploymentAnnotations:
       argocd.argoproj.io/sync-wave: "30"
+    # Resource-level labels on the Deployment object, layered over commonLabels;
+    # a per-queue/addon `deploymentLabels` merges over these key-wise.
+    deploymentLabels: {}
     # Per-component annotations merged into the pod template
     # (spec.template.metadata.annotations), NOT the Deployment resource. A
     # sync-wave here would be inert — put it in deploymentAnnotations above.
@@ -308,6 +314,9 @@ worker:
     # Values follow the `api.ingress.annotations` contract above.
     deploymentAnnotations:
       argocd.argoproj.io/sync-wave: "30"
+    # Resource-level labels on the Deployment object, layered over commonLabels;
+    # a per-queue/addon `deploymentLabels` merges over these key-wise.
+    deploymentLabels: {}
     # Per-component annotations merged into the pod template
     # (spec.template.metadata.annotations), NOT the Deployment resource. A
     # sync-wave here would be inert — put it in deploymentAnnotations above.
@@ -408,6 +417,9 @@ cronjobs:
     # omitted once nothing is left.
     cronjobAnnotations:
       argocd.argoproj.io/sync-wave: "30"
+    # Resource-level labels on the CronJob object, layered over commonLabels;
+    # a per-job `cronjobLabels` merges over these key-wise.
+    cronjobLabels: {}
     # Default k8s CronJob keeps 3 successful + 1 failed. Tighten by default.
     successfulJobsHistoryLimit: 1
     failedJobsHistoryLimit: 1
@@ -466,6 +478,9 @@ hooks:
     # sync-wave annotations belong. Values follow the `api.ingress.annotations`
     # contract above.
     jobAnnotations: {}
+    # Resource-level labels on every hook Job (and its files ConfigMap), layered
+    # over commonLabels; a per-job `jobLabels` merges over these key-wise.
+    jobLabels: {}
     # Pod-level annotations, applied to every hook Job's pod. A sync-wave here
     # would be inert — put it in jobAnnotations above (the chart fails fast if
     # you get this wrong).

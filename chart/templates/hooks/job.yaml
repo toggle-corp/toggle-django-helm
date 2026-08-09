@@ -72,7 +72,7 @@ metadata:
     hookName: {{ $jobName }}
     environment: {{ $.Values.environment }}
     release: {{ $.Release.Name }}
-    {{- with (include "banjo.commonLabels" $) -}}{{ . | nindent 4 }}{{- end }}
+    {{- with (include "banjo.resourceLabels" (dict "Default" $defaults.jobLabels "DefaultPath" "hooks.defaults.jobLabels" "Override" $job.jobLabels "OverridePath" (printf "hooks.jobs.%s.jobLabels" $jobName) "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
 data:
   {{- range $key, $value := $files }}
   {{ $key }}: {{ $value | toString | quote }}
@@ -96,7 +96,7 @@ metadata:
     hookName: {{ $jobName }}
     environment: {{ $.Values.environment }}
     release: {{ $.Release.Name }}
-    {{- with (include "banjo.commonLabels" $) -}}{{ . | nindent 4 }}{{- end }}
+    {{- with (include "banjo.resourceLabels" (dict "Default" $defaults.jobLabels "DefaultPath" "hooks.defaults.jobLabels" "Override" $job.jobLabels "OverridePath" (printf "hooks.jobs.%s.jobLabels" $jobName) "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
 spec:
   {{- with $job.activeDeadlineSeconds }}
   activeDeadlineSeconds: {{ . }}

@@ -33,7 +33,7 @@ metadata:
     addon: {{ $addon_name }}
     environment: {{ $.Values.environment }}
     release: {{ $.Release.Name }}
-    {{- with (include "banjo.commonLabels" $) -}}{{ . | nindent 4 }}{{- end }}
+    {{- with (include "banjo.resourceLabels" (dict "Default" $defaults.deploymentLabels "DefaultPath" "worker.addonDefaults.deploymentLabels" "Override" $addon.deploymentLabels "OverridePath" (printf "worker.addons.%s.deploymentLabels" $addon_name) "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
 spec:
   {{- if not (eq $addon.replicaCount nil) }}
   replicas: {{ $addon.replicaCount }}

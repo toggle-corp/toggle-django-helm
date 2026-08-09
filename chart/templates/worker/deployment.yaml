@@ -34,7 +34,7 @@ metadata:
     queue: {{ $queue_name }}
     environment: {{ $.Values.environment }}
     release: {{ $.Release.Name }}
-    {{- with (include "banjo.commonLabels" $) -}}{{ . | nindent 4 }}{{- end }}
+    {{- with (include "banjo.resourceLabels" (dict "Default" $defaults.deploymentLabels "DefaultPath" "worker.queueDefaults.deploymentLabels" "Override" $config.deploymentLabels "OverridePath" (printf "worker.queues.%s.deploymentLabels" $queue_name) "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
 spec:
   {{- if not (eq $config.replicaCount nil) }}
   replicas: {{ $config.replicaCount }}

@@ -54,6 +54,7 @@ Every key path shown as an "after" state in this doc is a 0.5.0 path.
 | `hooks.jobs.<X>.podAnnotations` | Per-job pod annotations. |
 | `cronjobs.defaults.cronjobAnnotations` | Resource-level CronJob annotations, defaulted to `argocd.argoproj.io/sync-wave: "30"`. See behavioral note 9. |
 | `commonAnnotations` | Chart-wide, on every rendered resource's own metadata. Component keys overlay it. |
+| `api.deploymentLabels`, `worker.*.deploymentLabels`, `cronjobs.*.cronjobLabels`, `hooks.*.jobLabels` | Per-component resource labels, layered over `commonLabels`. Same reserved-key rule. |
 | `commonLabels` | Chart-wide labels, same reach. Resource metadata only — never a pod template, since `spec.selector.matchLabels` is immutable. Naming a label the chart sets itself (`app`, `component`, `environment`, `release`, `queue`, `addon`, `jobName`, `hookName`) fails the render. |
 
 ### Value contract (all annotation, label and `extraEnv` maps)

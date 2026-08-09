@@ -34,7 +34,7 @@ metadata:
     jobName: {{ $jobName }}
     environment: {{ $.Values.environment }}
     release: {{ $.Release.Name }}
-    {{- with (include "banjo.commonLabels" $) -}}{{ . | nindent 4 }}{{- end }}
+    {{- with (include "banjo.resourceLabels" (dict "Default" $defaults.cronjobLabels "DefaultPath" "cronjobs.defaults.cronjobLabels" "Override" $job.cronjobLabels "OverridePath" (printf "cronjobs.jobs.%s.cronjobLabels" $jobName) "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
 spec:
   schedule: {{ $job.schedule | quote }}
   {{- if $job.timeZone }}

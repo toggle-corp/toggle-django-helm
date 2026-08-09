@@ -275,3 +275,158 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "commonLabels.component collides with a label the chart sets itself — pick another key"
+
+  - it: should merge commonLabels under api.deploymentLabels, api winning
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonLabels:
+        example.com/owner: "from-common"
+        example.com/team: "from-common"
+      api:
+        enabled: true
+        deploymentLabels:
+          example.com/owner: "from-api"
+    asserts:
+      - equal:
+          path: metadata.labels["example.com/owner"]
+          value: "from-api"
+      - equal:
+          path: metadata.labels["example.com/team"]
+          value: "from-common"
+      - notExists:
+          path: spec.template.metadata.labels["example.com/owner"]
+
+  - it: should merge queueDefaults and per-queue deploymentLabels, queue winning
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          deploymentLabels:
+            example.com/owner: "from-defaults"
+            example.com/team: "from-defaults"
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            deploymentLabels:
+              example.com/owner: "from-queue"
+    asserts:
+      - equal:
+          path: metadata.labels["example.com/owner"]
+          value: "from-queue"
+      - equal:
+          path: metadata.labels["example.com/team"]
+          value: "from-defaults"
+      - equal:
+          path: metadata.labels.queue
+          value: default
+
+  - it: should let a per-queue null deploymentLabel unset a queueDefaults key
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          deploymentLabels:
+            example.com/owner: "from-defaults"
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            deploymentLabels:
+              example.com/owner: null
+    asserts:
+      - notExists:
+          path: metadata.labels["example.com/owner"]
+
+  - it: should merge cronjobLabels over commonLabels on the CronJob
+    template: templates/cronjobs/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonLabels:
+        example.com/team: "from-common"
+      cronjobs:
+        enabled: true
+        defaults:
+          cronjobLabels:
+            example.com/tier: "batch"
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            cronjobLabels:
+              example.com/owner: "data"
+    asserts:
+      - equal:
+          path: metadata.labels["example.com/team"]
+          value: "from-common"
+      - equal:
+          path: metadata.labels["example.com/tier"]
+          value: "batch"
+      - equal:
+          path: metadata.labels["example.com/owner"]
+          value: "data"
+      - notExists:
+          path: spec.jobTemplate.spec.template.metadata.labels["example.com/owner"]
+
+  - it: should merge jobLabels over commonLabels on the hook Job
+    template: templates/hooks/job.yaml
+    documentSelector:
+      path: metadata.labels.hookName
+      value: db-migrate
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonLabels:
+        example.com/team: "from-common"
+      hooks:
+        enabled: true
+        defaults:
+          jobLabels:
+            example.com/tier: "hook"
+        jobs:
+          db-migrate:
+            enabled: true
+            command: ["./manage.py", "migrate"]
+            jobLabels:
+              example.com/owner: "platform"
+    asserts:
+      - equal:
+          path: metadata.labels["example.com/team"]
+          value: "from-common"
+      - equal:
+          path: metadata.labels["example.com/tier"]
+          value: "hook"
+      - equal:
+          path: metadata.labels["example.com/owner"]
+          value: "platform"
+      - notExists:
+          path: spec.template.metadata.labels["example.com/owner"]
+
+  - it: fails when a component label map names a label the chart sets itself
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        deploymentLabels:
+          component: "mine"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.deploymentLabels.component collides with a label the chart sets itself — pick another key"

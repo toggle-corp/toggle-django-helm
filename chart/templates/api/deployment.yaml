@@ -12,7 +12,7 @@ metadata:
     component: api
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
-    {{- with (include "banjo.commonLabels" $) -}}{{ . | nindent 4 }}{{- end }}
+    {{- with (include "banjo.resourceLabels" (dict "Override" .Values.api.deploymentLabels "OverridePath" "api.deploymentLabels" "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
 spec:
   {{- if not (eq .Values.api.replicaCount nil) }}
   replicas: {{ .Values.api.replicaCount }}

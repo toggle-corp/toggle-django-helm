@@ -7,7 +7,7 @@ metadata:
     app: {{ include "banjo.fullname" . }}
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
-    {{- with (include "banjo.commonLabels" $) -}}{{ . | nindent 4 }}{{- end }}
+    {{- with (include "banjo.resourceLabels" (dict "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
 data:
   # Configs
   {{- range $name, $value := .Values.env }}

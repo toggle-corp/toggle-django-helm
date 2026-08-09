@@ -335,26 +335,43 @@ Usage: include "banjo.tplAnnotations" (dict "Annotations" $map "Context" $)
 {{- end }}
 
 {{/*
-Chart-wide `commonLabels`, rendered onto every resource's own metadata beside
-the labels the chart sets itself. Values go through `banjo.tplAnnotations`.
+Labels for one resource's own metadata, layered lowest to highest: root
+`commonLabels`, the component defaults, then the per-item map. Rendered beside
+the labels the chart sets itself, so this emits no `labels:` key.
 
-Fails on a key the chart already sets: the two would render as duplicate YAML
-keys, and the chart's own labels are what its Deployment selectors match on.
-`commonLabels` never reaches a pod template — `spec.selector.matchLabels` is
-immutable once applied, so a changed label would break the upgrade. Use
-`podLabels` for pod-template labels.
+Never reaches a pod template — `spec.selector.matchLabels` is immutable once
+applied, so a changed label would break the upgrade. Use `podLabels` for
+pod-template labels.
+
+Values are rendered by `banjo.tplAnnotations`.
 
 Body-only, and empty in, empty out — the caller emits the `labels:` key.
-Usage: include "banjo.commonLabels" $
+Usage: include "banjo.resourceLabels" (dict "Default" $defaults.cronjobLabels "DefaultPath" "cronjobs.defaults.cronjobLabels" "Override" $job.cronjobLabels "OverridePath" "..." "Context" $)
 */}}
-{{- define "banjo.commonLabels" -}}
-{{- $labels := default dict .Values.commonLabels -}}
+{{- define "banjo.resourceLabels" -}}
+{{- include "banjo.assertNoReservedLabels" (dict "Labels" .Context.Values.commonLabels "Path" "commonLabels") -}}
+{{- include "banjo.assertNoReservedLabels" (dict "Labels" .Default "Path" .DefaultPath) -}}
+{{- include "banjo.assertNoReservedLabels" (dict "Labels" .Override "Path" .OverridePath) -}}
+{{- /* Overlay by hand rather than `merge`: mergo skips nil source values, so an
+       override of `KEY: null` would be dropped before it could unset the default. */ -}}
+{{- $labels := deepCopy (default (dict) .Context.Values.commonLabels) -}}
+{{- range $k, $v := (default (dict) .Default) }}{{- $_ := set $labels $k $v -}}{{- end -}}
+{{- range $k, $v := (default (dict) .Override) }}{{- $_ := set $labels $k $v -}}{{- end -}}
+{{- include "banjo.tplAnnotations" (dict "Annotations" $labels "Context" .Context) -}}
+{{- end }}
+
+{{/*
+Fail on a label key the chart sets itself. The two would render as duplicate
+YAML keys, and the chart's own labels are what its Deployment selectors match on.
+Usage: include "banjo.assertNoReservedLabels" (dict "Labels" $map "Path" "commonLabels")
+*/}}
+{{- define "banjo.assertNoReservedLabels" -}}
+{{- $labels := default dict .Labels -}}
 {{- range $k := list "app" "component" "environment" "release" "queue" "addon" "jobName" "hookName" -}}
 {{- if hasKey $labels $k -}}
-{{- fail (printf "commonLabels.%s collides with a label the chart sets itself — pick another key" $k) -}}
+{{- fail (printf "%s.%s collides with a label the chart sets itself — pick another key" $.Path $k) -}}
 {{- end -}}
 {{- end -}}
-{{- include "banjo.tplAnnotations" (dict "Annotations" $labels "Context" .) -}}
 {{- end }}
 
 {{/*
