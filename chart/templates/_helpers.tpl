@@ -262,19 +262,20 @@ annotations:
 {{- end }}
 
 {{/*
-Resource-level annotations for one CronJob: a per-job map merged key-wise over
-cronjobs.defaults, per-job winning. A per-job `KEY: null` drops the key, so one
-job can opt out of a shared annotation rather than only shadow it.
+Resource-level annotations for one CronJob or hook Job: a per-item map merged
+key-wise over the component defaults, per-item winning. A per-item `KEY: null`
+drops the key, so one item can opt out of a shared annotation rather than only
+shadow it.
 
 Values are rendered by `banjo.tplAnnotations`.
 
 Emits no reloader.stakater.com/auto — a CronJob reads its ConfigMap/Secret on
-every fire, so there is no running pod to restart.
+every fire and a hook Job runs once, so there is no long-lived pod to restart.
 
 Body-only: emits the `annotations:` key, guards emptiness, caller indents.
-Usage: include "banjo.cronjobAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations "Context" $)
+Usage: include "banjo.resourceAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations "Context" $)
 */}}
-{{- define "banjo.cronjobAnnotations" -}}
+{{- define "banjo.resourceAnnotations" -}}
 {{- /* Overlay by hand rather than `merge`: mergo skips nil source values, so an
        override of `KEY: null` would be dropped before it could unset the default. */ -}}
 {{- $ann := deepCopy (default (dict) .Default) -}}
@@ -362,11 +363,12 @@ Usage: include "banjo.assertNoStrayKeys" (dict "Block" $b "Path" "cronjobs" "Fie
 Fail on an ArgoCD sync-wave in a pod-level annotations map. ArgoCD reads
 sync-wave from the resource, not from a pod template, so such a value renders
 successfully and orders nothing.
-Usage: include "banjo.assertNoInertSyncWave" (dict "Annotations" $map "Path" "cronjobs.defaults")
+`Suggest` names the resource-level key at the same path that does work.
+Usage: include "banjo.assertNoInertSyncWave" (dict "Annotations" $map "Path" "cronjobs.defaults" "Suggest" "cronjobAnnotations")
 */}}
 {{- define "banjo.assertNoInertSyncWave" -}}
 {{- if hasKey (default dict .Annotations) "argocd.argoproj.io/sync-wave" -}}
-{{- fail (printf "%s.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under %s.cronjobAnnotations" .Path .Path) -}}
+{{- fail (printf "%s.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under %s.%s" .Path .Path .Suggest) -}}
 {{- end -}}
 {{- end }}
 

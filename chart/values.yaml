@@ -425,7 +425,16 @@ hooks:
       # imagePullPolicy: IfNotPresent
       # imagePullSecrets:
     extraEnv: {}
-    annotations: {}
+    # Resource-level annotations on every hook Job object. A per-job
+    # `jobAnnotations` map merges key-wise over this one, per-job winning, and a
+    # per-job `KEY: null` drops the key. This is where the ArgoCD hook and
+    # sync-wave annotations belong. Values follow the `api.ingress.annotations`
+    # contract above.
+    jobAnnotations: {}
+    # Pod-level annotations, applied to every hook Job's pod. A sync-wave here
+    # would be inert — put it in jobAnnotations above (the chart fails fast if
+    # you get this wrong).
+    podAnnotations: {}
     # Pod scheduling for every hook job; a per-job value replaces this per field.
     # See the root `nodeSelector` block for the full contract. Hooks are the one
     # exception to root inheritance: they pick up root nodeSelector/tolerations,
@@ -463,7 +472,7 @@ hooks:
     # NOTE: Make sure keys are lowercase.
     wait-for-resources:
       enabled: true  # gate for api/worker; requires https://github.com/toggle-corp/banjo-utils
-      annotations:
+      jobAnnotations:
         argocd.argoproj.io/hook: "Sync"
         argocd.argoproj.io/sync-wave: "10"
         argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -477,13 +486,13 @@ hooks:
       useGenerateName: true
       activeDeadlineSeconds: 3600
       ttlSecondsAfterFinished: 604800  # 7 days
-      annotations:
+      jobAnnotations:
         argocd.argoproj.io/hook: "Sync"
         argocd.argoproj.io/sync-wave: "20"
       command: ["./manage.py", "migrate"]
     collect-static:
       enabled: true
-      annotations:
+      jobAnnotations:
         argocd.argoproj.io/hook: "Sync"
         argocd.argoproj.io/sync-wave: "20"
         argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
@@ -497,7 +506,7 @@ hooks:
     # you. File keys must match [-._a-zA-Z0-9]+ and filesMountPath must be absolute.
     # run-shell-script:
     #   enabled: false
-    #   annotations:
+    #   jobAnnotations:
     #     argocd.argoproj.io/hook: "Sync"
     #     argocd.argoproj.io/sync-wave: "20"
     #     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation

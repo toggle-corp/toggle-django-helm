@@ -175,7 +175,7 @@ hooks:
     my-custom-command:
       enabled: true
       useGenerateName: true
-      annotations:
+      jobAnnotations:
         argocd.argoproj.io/hook: "PostSync"
         argocd.argoproj.io/sync-wave: "30"
       command: ["/bin/bash", "-c"]
@@ -187,7 +187,7 @@ hooks:
     my-another-custom-command:
       enabled: true
       useGenerateName: true
-      annotations:
+      jobAnnotations:
         argocd.argoproj.io/hook: "PostSync"
         argocd.argoproj.io/sync-wave: "30"
       command: ["/bin/bash", "-c"]
@@ -195,7 +195,7 @@ hooks:
         - "gdate --iso-8601 && ls"
     run-shell-script:
       enabled: true
-      annotations:
+      jobAnnotations:
         argocd.argoproj.io/hook: "Sync"
         argocd.argoproj.io/sync-wave: "20"
         argocd.argoproj.io/hook-delete-policy: HookSucceeded

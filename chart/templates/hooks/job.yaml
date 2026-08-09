@@ -2,6 +2,8 @@
 {{- if .Values.hooks.enabled }}
 
 {{- $defaults := default dict .Values.hooks.defaults -}}
+{{- include "banjo.assertNoStrayKeys" (dict "Block" $defaults "Path" "hooks.defaults" "Fields" (list "annotations") "Hint" "renamed to podAnnotations — it lands on the pod template, not the Job") -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $defaults.podAnnotations "Path" "hooks.defaults" "Suggest" "jobAnnotations") -}}
 {{- $jobs := list -}}
 {{- if kindIs "map" .Values.hooks.jobs -}}
   {{- range $name, $cfg := .Values.hooks.jobs -}}
@@ -14,7 +16,12 @@
 {{- range $job := $jobs }}
 {{- if $job.enabled }}
 {{- $jobName := $job.name }}
-{{- $ann := default (dict) $job.annotations }}
+{{- include "banjo.assertNoStrayKeys" (dict "Block" $job "Path" (printf "hooks.jobs.%s" $jobName) "Fields" (list "annotations") "Hint" "renamed to jobAnnotations") -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $job.podAnnotations "Path" (printf "hooks.jobs.%s" $jobName) "Suggest" "jobAnnotations") -}}
+{{- /* Overlay by hand rather than `merge`: mergo skips nil source values, so a
+       per-job `KEY: null` would be dropped before it could unset the default. */ -}}
+{{- $ann := deepCopy (default (dict) $defaults.jobAnnotations) }}
+{{- range $k, $v := (default (dict) $job.jobAnnotations) }}{{- $_ := set $ann $k $v -}}{{- end }}
 {{- $files := default (dict) $job.files }}
 {{- $mountPath := default "/etc/hook-files" $job.filesMountPath }}
 {{- $cmName := printf "%s-%s-files" (include "banjo.fullname" $) $jobName }}
@@ -83,10 +90,7 @@ metadata:
   {{- else }}
   name: {{ template "banjo.fullname" $ }}-{{ $jobName }}
   {{- end }}
-  {{- with $job.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+  {{- with (include "banjo.resourceAnnotations" (dict "Default" $defaults.jobAnnotations "Override" $job.jobAnnotations "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" $ }}
     component: hook
@@ -104,7 +108,10 @@ spec:
     metadata:
       annotations:
         {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
-        {{- with $defaults.annotations }}
+        {{- with $defaults.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $job.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
       labels:

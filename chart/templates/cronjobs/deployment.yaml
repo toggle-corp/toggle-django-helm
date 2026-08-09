@@ -4,7 +4,7 @@
 
 {{- $defaults := default dict .Values.cronjobs.defaults -}}
 {{- include "banjo.assertNoStrayKeys" (dict "Block" $defaults "Path" "cronjobs.defaults" "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
-{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $defaults.podAnnotations "Path" "cronjobs.defaults") -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $defaults.podAnnotations "Path" "cronjobs.defaults" "Suggest" "cronjobAnnotations") -}}
 {{- $jobs := list -}}
 {{- if kindIs "map" .Values.cronjobs.jobs -}}
   {{- range $name, $cfg := .Values.cronjobs.jobs -}}
@@ -19,7 +19,7 @@
 {{- $jobName := $job.name }}
 {{- /* --- render-time validation: fail here, before emitting any doc --- */ -}}
 {{- include "banjo.assertNoStrayKeys" (dict "Block" $job "Path" (printf "cronjobs.jobs.%s" $jobName) "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
-{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $job.podAnnotations "Path" (printf "cronjobs.jobs.%s" $jobName)) }}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $job.podAnnotations "Path" (printf "cronjobs.jobs.%s" $jobName) "Suggest" "cronjobAnnotations") }}
 
 ---
 # Job: {{ $jobName }}
@@ -27,7 +27,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: {{ template "banjo.fullname" $ }}-job-{{ $jobName | nospace | lower | replace "_" "-" }}
-  {{- with (include "banjo.cronjobAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
+  {{- with (include "banjo.resourceAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" $ }}
     component: cronjob

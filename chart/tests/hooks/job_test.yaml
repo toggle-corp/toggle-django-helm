@@ -127,7 +127,7 @@ tests:
           custom:
             enabled: true
             command: ["./run"]
-            annotations:
+            jobAnnotations:
               helm.sh/hook: post-install,post-upgrade
               helm.sh/hook-weight: "5"
               custom.example/key: my-value
@@ -155,7 +155,7 @@ tests:
           - name: array-form-hook
             enabled: true
             command: ["./array-form"]
-            annotations:
+            jobAnnotations:
               argocd.argoproj.io/hook: PostSync
     asserts:
       - hasDocuments:
@@ -182,7 +182,7 @@ tests:
             enabled: true
             command: ["/bin/bash", "-c"]
             args: ["date --iso-8601"]
-            annotations:
+            jobAnnotations:
               argocd.argoproj.io/hook: PostSync
     asserts:
       - equal:
@@ -216,7 +216,7 @@ tests:
             enabled: false
           run-shell-script:
             enabled: true
-            annotations:
+            jobAnnotations:
               argocd.argoproj.io/hook: "Sync"
               argocd.argoproj.io/sync-wave: "20"
               argocd.argoproj.io/hook-delete-policy: HookSucceeded
@@ -272,7 +272,7 @@ tests:
             enabled: false
           run-shell-script:
             enabled: true
-            annotations:
+            jobAnnotations:
               argocd.argoproj.io/hook: "Sync"
             files:
               seed.py: 'print(1)'
@@ -312,7 +312,7 @@ tests:
             enabled: false
           run-shell-script:
             enabled: true
-            annotations:
+            jobAnnotations:
               argocd.argoproj.io/hook: "Sync"
             filesMountPath: /opt/scripts
             files:
@@ -596,3 +596,197 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "hooks.nodeSelector is not read by the chart — set it under hooks.defaults"
+
+  - it: should merge hooks.defaults.jobAnnotations under per-job jobAnnotations on the Job
+    template: templates/hooks/job.yaml
+    documentSelector:
+      path: metadata.labels.hookName
+      value: db-migrate
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        defaults:
+          jobAnnotations:
+            example.com/owner: "platform"
+            argocd.argoproj.io/hook: "Sync"
+        jobs:
+          db-migrate:
+            enabled: true
+            command: ["./manage.py", "migrate"]
+            jobAnnotations:
+              argocd.argoproj.io/hook: "PostSync"
+              argocd.argoproj.io/sync-wave: "20"
+    asserts:
+      # inherited from defaults
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: "platform"
+      # per-job wins for a key present at both levels
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: "PostSync"
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "20"
+
+  - it: should let a per-job null jobAnnotation unset a hooks.defaults key
+    template: templates/hooks/job.yaml
+    documentSelector:
+      path: metadata.labels.hookName
+      value: db-migrate
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        defaults:
+          jobAnnotations:
+            example.com/owner: "platform"
+        jobs:
+          db-migrate:
+            enabled: true
+            command: ["./manage.py", "migrate"]
+            jobAnnotations:
+              example.com/owner: null
+    asserts:
+      - notExists:
+          path: metadata.annotations["example.com/owner"]
+
+  - it: should render hooks podAnnotations onto the pod template, not the Job
+    template: templates/hooks/job.yaml
+    documentSelector:
+      path: metadata.labels.hookName
+      value: db-migrate
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        defaults:
+          podAnnotations:
+            example.com/owner: "platform"
+        jobs:
+          db-migrate:
+            enabled: true
+            command: ["./manage.py", "migrate"]
+            podAnnotations:
+              example.com/tier: "batch"
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["example.com/owner"]
+          value: "platform"
+      - equal:
+          path: spec.template.metadata.annotations["example.com/tier"]
+          value: "batch"
+      - notExists:
+          path: metadata.annotations["example.com/owner"]
+      - notExists:
+          path: metadata.annotations["example.com/tier"]
+
+  - it: should carry merged jobAnnotations onto the per-job files ConfigMap
+    template: templates/hooks/job.yaml
+    documentSelector:
+      path: kind
+      value: ConfigMap
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        defaults:
+          jobAnnotations:
+            argocd.argoproj.io/hook: "Sync"
+            argocd.argoproj.io/sync-wave: "20"
+        jobs:
+          seed:
+            enabled: true
+            command: ["sh", "-c", "./manage.py shell < /etc/hook-files/seed.py"]
+            files:
+              seed.py: "print('hi')"
+    asserts:
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/hook"]
+          value: "Sync"
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "20"
+
+  - it: fails when Job annotations sit at the pre-rename hooks.jobs.<name>.annotations
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        jobs:
+          db-migrate:
+            enabled: true
+            command: ["./manage.py", "migrate"]
+            annotations:
+              argocd.argoproj.io/hook: "Sync"
+    asserts:
+      - failedTemplate:
+          errorMessage: "hooks.jobs.db-migrate.annotations is not read by the chart — renamed to jobAnnotations"
+
+  - it: fails when pod annotations sit at the pre-rename hooks.defaults.annotations
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        defaults:
+          annotations:
+            example.com/owner: "platform"
+        jobs:
+          db-migrate:
+            enabled: true
+            command: ["./manage.py", "migrate"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "hooks.defaults.annotations is not read by the chart — renamed to podAnnotations — it lands on the pod template, not the Job"
+
+  - it: fails when a sync-wave sits in the pod-level hooks.defaults.podAnnotations
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        defaults:
+          podAnnotations:
+            argocd.argoproj.io/sync-wave: "20"
+        jobs:
+          db-migrate:
+            enabled: true
+            command: ["./manage.py", "migrate"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "hooks.defaults.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under hooks.defaults.jobAnnotations"
+
+  - it: fails when a sync-wave sits in a per-job pod-level podAnnotations map
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      hooks:
+        enabled: true
+        jobs:
+          db-migrate:
+            enabled: true
+            command: ["./manage.py", "migrate"]
+            podAnnotations:
+              argocd.argoproj.io/sync-wave: "20"
+    asserts:
+      - failedTemplate:
+          errorMessage: "hooks.jobs.db-migrate.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under hooks.jobs.db-migrate.jobAnnotations"
