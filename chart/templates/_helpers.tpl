@@ -345,13 +345,18 @@ pod-template labels.
 
 Values are rendered by `banjo.tplAnnotations`.
 
+`Reserved` overrides the key list the caller's resource sets for itself. The
+ServiceAccount sets none, so it passes an empty list.
+
 Body-only, and empty in, empty out — the caller emits the `labels:` key.
 Usage: include "banjo.resourceLabels" (dict "Default" $defaults.cronjobLabels "DefaultPath" "cronjobs.defaults.cronjobLabels" "Override" $job.cronjobLabels "OverridePath" "..." "Context" $)
 */}}
 {{- define "banjo.resourceLabels" -}}
-{{- include "banjo.assertNoReservedLabels" (dict "Labels" .Context.Values.commonLabels "Path" "commonLabels") -}}
-{{- include "banjo.assertNoReservedLabels" (dict "Labels" .Default "Path" .DefaultPath) -}}
-{{- include "banjo.assertNoReservedLabels" (dict "Labels" .Override "Path" .OverridePath) -}}
+{{- $reserved := list "app" "component" "environment" "release" "queue" "addon" "jobName" "hookName" -}}
+{{- if hasKey . "Reserved" -}}{{- $reserved = .Reserved -}}{{- end -}}
+{{- include "banjo.assertNoReservedLabels" (dict "Labels" .Context.Values.commonLabels "Path" "commonLabels" "Reserved" $reserved) -}}
+{{- include "banjo.assertNoReservedLabels" (dict "Labels" .Default "Path" .DefaultPath "Reserved" $reserved) -}}
+{{- include "banjo.assertNoReservedLabels" (dict "Labels" .Override "Path" .OverridePath "Reserved" $reserved) -}}
 {{- /* Overlay by hand rather than `merge`: mergo skips nil source values, so an
        override of `KEY: null` would be dropped before it could unset the default. */ -}}
 {{- $labels := deepCopy (default (dict) .Context.Values.commonLabels) -}}
@@ -363,11 +368,11 @@ Usage: include "banjo.resourceLabels" (dict "Default" $defaults.cronjobLabels "D
 {{/*
 Fail on a label key the chart sets itself. The two would render as duplicate
 YAML keys, and the chart's own labels are what its Deployment selectors match on.
-Usage: include "banjo.assertNoReservedLabels" (dict "Labels" $map "Path" "commonLabels")
+Usage: include "banjo.assertNoReservedLabels" (dict "Labels" $map "Path" "commonLabels" "Reserved" $list)
 */}}
 {{- define "banjo.assertNoReservedLabels" -}}
 {{- $labels := default dict .Labels -}}
-{{- range $k := list "app" "component" "environment" "release" "queue" "addon" "jobName" "hookName" -}}
+{{- range $k := .Reserved -}}
 {{- if hasKey $labels $k -}}
 {{- fail (printf "%s.%s collides with a label the chart sets itself — pick another key" $.Path $k) -}}
 {{- end -}}

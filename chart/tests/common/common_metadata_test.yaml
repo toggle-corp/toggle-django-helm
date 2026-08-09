@@ -430,3 +430,31 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "api.deploymentLabels.component collides with a label the chart sets itself — pick another key"
+
+  - it: fails when api.ingress.labels names a label the chart sets itself
+    template: templates/api/ingress.yaml
+    set:
+      api:
+        enabled: true
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          labels:
+            component: "customer-facing"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.ingress.labels.component collides with a label the chart sets itself — pick another key"
+
+  # The ServiceAccount sets no labels of its own, so the reserved list is empty
+  # there and a key that would collide elsewhere is legal.
+  - it: should allow a reserved key on serviceAccount.labels
+    template: templates/api/service-account.yaml
+    set:
+      serviceAccount:
+        create: true
+        labels:
+          app: "mine"
+    asserts:
+      - equal:
+          path: metadata.labels.app
+          value: "mine"
