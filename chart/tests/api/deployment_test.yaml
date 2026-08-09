@@ -694,3 +694,33 @@ tests:
           value: "3"
       - exists:
           path: spec.template.metadata.annotations["checksum/configmap"]
+
+  - it: should render a non-string api.extraEnv value as JSON
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        extraEnv:
+          MAX_WORKERS: 4
+          DEBUG: false
+          FEATURE_FLAGS:
+            beta: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: MAX_WORKERS
+            value: "4"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DEBUG
+            value: "false"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FEATURE_FLAGS
+            value: '{"beta":true}'

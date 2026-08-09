@@ -229,7 +229,8 @@ Generate env configs for app types
 Merge per-component extraEnv maps (defaults + override) and render as a k8s env array.
 Override wins per key, and `KEY: null` in the override drops the key entirely,
 so an item can opt out of a shared var rather than only shadow it.
-Values are tpl-evaluated against the root context.
+A string value is tpl-evaluated against the root context; any other value is
+rendered with `toJson`, matching the env: ConfigMap/Secret contract.
 Usage: include "banjo.extraEnvBlock" (dict "Default" $defaultsBlock "Override" $itemBlock "Context" $)
 */}}
 {{- define "banjo.extraEnvBlock" -}}
@@ -242,7 +243,7 @@ Usage: include "banjo.extraEnvBlock" (dict "Default" $defaultsBlock "Override" $
 {{- range $k, $v := $merged }}
 {{- if not (kindIs "invalid" $v) }}
 - name: {{ $k }}
-  value: {{ tpl (toString $v) $.Context | quote }}
+  value: {{ (kindIs "string" $v) | ternary (tpl (toString $v) $.Context) (toJson $v) | quote }}
 {{- end }}
 {{- end }}
 {{- end }}

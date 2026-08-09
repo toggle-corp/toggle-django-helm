@@ -103,8 +103,10 @@ api:
   # Per-component annotations merged into the pod template
   # (spec.template.metadata.annotations), NOT the Deployment resource.
   podAnnotations: {}
-  # Per-component inline env. tpl-evaluated. Layered on top of the global
-  # env: ConfigMap (envFrom) — item entries override global on key conflict.
+  # Per-component inline env. A string value is tpl-evaluated, any other value
+  # renders as JSON — the same contract as the `env:` block below. Layered on top
+  # of the global env: ConfigMap (envFrom) — item entries override global on key
+  # conflict.
   # A per-item `KEY: null` drops the key rather than overriding it, so an item
   # can opt out of a var its component defaults set.
   extraEnv: {}
