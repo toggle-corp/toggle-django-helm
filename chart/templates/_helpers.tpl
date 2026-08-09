@@ -294,6 +294,9 @@ Usage: include "banjo.podAnnotations" (dict "Default" $defaults.podAnnotations "
 */}}
 {{- define "banjo.podAnnotations" -}}
 {{- $ctx := .Context -}}
+{{- if hasKey (default dict $ctx.Values.podAnnotations) "argocd.argoproj.io/sync-wave" -}}
+{{- fail "podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under commonAnnotations" -}}
+{{- end -}}
 {{- $lines := list -}}
 {{- if .Checksums -}}
 {{- $lines = append $lines (printf "checksum/secret: %s" (include (print $ctx.Template.BasePath "/config/secret.yaml") $ctx | sha256sum)) -}}

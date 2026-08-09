@@ -21,6 +21,10 @@ commonAnnotations: {}
 # overlay these key-wise, and a component-level `KEY: null` drops an entry set
 # here. Values follow the `api.ingress.annotations` contract below: strings are
 # tpl-evaluated, non-strings render as JSON, `KEY: null` drops the key.
+#
+# An ArgoCD sync-wave here would be inert — put it in commonAnnotations above
+# (the chart fails fast if you get this wrong). Same for every per-component
+# `podAnnotations`, which point at that component's resource-level key.
 podLabels: {}
 podAnnotations: {}
 podVolumes: []
@@ -112,7 +116,8 @@ api:
   deploymentAnnotations:
     argocd.argoproj.io/sync-wave: "30"
   # Per-component annotations merged into the pod template
-  # (spec.template.metadata.annotations), NOT the Deployment resource.
+  # (spec.template.metadata.annotations), NOT the Deployment resource. A
+  # sync-wave here would be inert — put it in deploymentAnnotations above.
   podAnnotations: {}
   # Per-component inline env. A string value is tpl-evaluated, any other value
   # renders as JSON — the same contract as the `env:` block below. Layered on top
@@ -219,7 +224,8 @@ worker:
     deploymentAnnotations:
       argocd.argoproj.io/sync-wave: "30"
     # Per-component annotations merged into the pod template
-    # (spec.template.metadata.annotations), NOT the Deployment resource.
+    # (spec.template.metadata.annotations), NOT the Deployment resource. A
+    # sync-wave here would be inert — put it in deploymentAnnotations above.
     podAnnotations: {}
     # Deployment update strategy. Whole-block override (coalesced, NOT merged):
     # a per-queue strategy replaces this entirely. Singletons (e.g. beat) should
@@ -292,7 +298,8 @@ worker:
     deploymentAnnotations:
       argocd.argoproj.io/sync-wave: "30"
     # Per-component annotations merged into the pod template
-    # (spec.template.metadata.annotations), NOT the Deployment resource.
+    # (spec.template.metadata.annotations), NOT the Deployment resource. A
+    # sync-wave here would be inert — put it in deploymentAnnotations above.
     podAnnotations: {}
     # Pod volumes / container mounts. Dict to merge by name, array to reset.
     volumes: {}

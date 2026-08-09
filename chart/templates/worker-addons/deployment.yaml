@@ -2,6 +2,7 @@
 
 {{- $defaults := default dict .Values.worker.addonDefaults -}}
 {{- include "banjo.assertNoStrayKeys" (dict "Block" $defaults "Path" "worker.addonDefaults" "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $defaults.podAnnotations "Path" "worker.addonDefaults" "Suggest" "deploymentAnnotations") -}}
 {{- $addons := list -}}
 {{- if kindIs "map" .Values.worker.addons -}}
   {{- range $name, $cfg := .Values.worker.addons -}}
@@ -15,6 +16,7 @@
 {{- if $addon.enabled }}
 {{- $addon_name := $addon.name }}
 {{- include "banjo.assertNoStrayKeys" (dict "Block" $addon "Path" (printf "worker.addons.%s" $addon_name) "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $addon.podAnnotations "Path" (printf "worker.addons.%s" $addon_name) "Suggest" "deploymentAnnotations") -}}
 {{- $extraVolumes := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumes "Override" $addon.volumes)) }}
 {{- $extraVolumeMounts := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumeMounts "Override" $addon.volumeMounts)) }}
 

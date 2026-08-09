@@ -724,3 +724,31 @@ tests:
           content:
             name: FEATURE_FLAGS
             value: '{"beta":true}'
+
+  - it: fails when a sync-wave sits in the pod-level api.podAnnotations
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        podAnnotations:
+          argocd.argoproj.io/sync-wave: "30"
+    asserts:
+      - failedTemplate:
+          errorMessage: "api.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under api.deploymentAnnotations"
+
+  - it: fails when a sync-wave sits in the root podAnnotations
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      podAnnotations:
+        argocd.argoproj.io/sync-wave: "30"
+      api:
+        enabled: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under commonAnnotations"

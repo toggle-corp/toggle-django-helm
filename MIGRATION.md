@@ -66,7 +66,7 @@ Applies to: every `*Annotations` key, `podLabels`, `api.ingress.labels`, `servic
 
 Two render-time failures are new. Both catch a setting that would otherwise render fine and do nothing:
 
-- An `argocd.argoproj.io/sync-wave` in any **pod-level** map (`podAnnotations`) fails and points at the resource-level key for that component. ArgoCD reads the wave off the resource, never off a pod template.
+- An `argocd.argoproj.io/sync-wave` in any **pod-level** map fails. ArgoCD reads the wave off the resource, never off a pod template. A component `podAnnotations` points you at that component's resource-level key; the root `podAnnotations` points at `commonAnnotations`.
 - `cronjobs.cronjobAnnotations` at the parent level (rather than under `cronjobs.defaults`) fails.
 
 ---

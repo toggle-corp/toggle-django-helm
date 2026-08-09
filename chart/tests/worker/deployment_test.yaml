@@ -997,3 +997,40 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "worker.queues.default.annotations is not read by the chart — renamed to podAnnotations"
+
+  - it: fails when a sync-wave sits in the pod-level worker.queueDefaults.podAnnotations
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          podAnnotations:
+            argocd.argoproj.io/sync-wave: "30"
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.queueDefaults.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under worker.queueDefaults.deploymentAnnotations"
+
+  - it: fails when a sync-wave sits in a per-queue podAnnotations map
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            podAnnotations:
+              argocd.argoproj.io/sync-wave: "30"
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.queues.default.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under worker.queues.default.deploymentAnnotations"

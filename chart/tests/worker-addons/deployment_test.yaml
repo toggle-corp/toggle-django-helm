@@ -736,3 +736,40 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "worker.addons.beat.annotations is not read by the chart — renamed to podAnnotations"
+
+  - it: fails when a sync-wave sits in the pod-level worker.addonDefaults.podAnnotations
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addonDefaults:
+          podAnnotations:
+            argocd.argoproj.io/sync-wave: "30"
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.addonDefaults.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under worker.addonDefaults.deploymentAnnotations"
+
+  - it: fails when a sync-wave sits in a per-addon podAnnotations map
+    template: templates/worker-addons/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        addons:
+          beat:
+            enabled: true
+            command: ["celery"]
+            podAnnotations:
+              argocd.argoproj.io/sync-wave: "30"
+    asserts:
+      - failedTemplate:
+          errorMessage: "worker.addons.beat.podAnnotations sets argocd.argoproj.io/sync-wave, which is inert on a pod template — set it under worker.addons.beat.deploymentAnnotations"

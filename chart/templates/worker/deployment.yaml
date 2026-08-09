@@ -3,6 +3,7 @@
 
 {{- $defaults := default dict .Values.worker.queueDefaults -}}
 {{- include "banjo.assertNoStrayKeys" (dict "Block" $defaults "Path" "worker.queueDefaults" "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $defaults.podAnnotations "Path" "worker.queueDefaults" "Suggest" "deploymentAnnotations") -}}
 {{- $queues := list -}}
 {{- if kindIs "map" .Values.worker.queues -}}
   {{- range $name, $cfg := .Values.worker.queues -}}
@@ -16,6 +17,7 @@
 {{- if $config.enabled }}
 {{- $queue_name := $config.name }}
 {{- include "banjo.assertNoStrayKeys" (dict "Block" $config "Path" (printf "worker.queues.%s" $queue_name) "Fields" (list "annotations") "Hint" "renamed to podAnnotations") -}}
+{{- include "banjo.assertNoInertSyncWave" (dict "Annotations" $config.podAnnotations "Path" (printf "worker.queues.%s" $queue_name) "Suggest" "deploymentAnnotations") -}}
 {{- $extraVolumes := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumes "Override" $config.volumes)) }}
 {{- $extraVolumeMounts := fromYamlArray (include "banjo.namedListConfig" (dict "Default" $defaults.volumeMounts "Override" $config.volumeMounts)) }}
 
