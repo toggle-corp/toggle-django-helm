@@ -5,10 +5,8 @@ kind: ServiceAccount
 metadata:
   name: secret-account
   annotations:
-    
     azure.workload.identity/client-id: XXXXXXXX-YYYYYYYY
   labels:
-    
     azure.workload.identity/use: "true"
 automountServiceAccountToken: true
 

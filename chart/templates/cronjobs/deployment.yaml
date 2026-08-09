@@ -50,16 +50,10 @@ spec:
       {{- end }}
       template:
         metadata:
+          {{- with (include "banjo.podAnnotations" (dict "Default" $defaults.podAnnotations "Override" $job.podAnnotations "Context" $)) }}
           annotations:
-            {{- with $.Values.podAnnotations }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
-            {{- with $defaults.podAnnotations }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
-            {{- with $job.podAnnotations }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+            {{- . | nindent 12 }}
+          {{- end }}
           labels:
             app: {{ include "banjo.fullname" $ }}
             component: cronjob

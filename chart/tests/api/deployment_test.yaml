@@ -658,3 +658,39 @@ tests:
           path: spec.template.spec.affinity
       - notExists:
           path: spec.template.spec.topologySpreadConstraints
+
+  - it: should coerce, tpl-evaluate and null-drop pod annotations and labels
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      podAnnotations:
+        example.com/port: 8080
+        example.com/root-only: "kept"
+        example.com/dropped: "from-root"
+      podLabels:
+        example.com/replicas: 3
+      api:
+        enabled: true
+        podAnnotations:
+          example.com/namespace: "{{ .Release.Namespace }}"
+          example.com/dropped: null
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["example.com/port"]
+          value: "8080"
+      - equal:
+          path: spec.template.metadata.annotations["example.com/root-only"]
+          value: "kept"
+      - equal:
+          path: spec.template.metadata.annotations["example.com/namespace"]
+          value: NAMESPACE
+      # a component-level null unsets a root podAnnotations key
+      - notExists:
+          path: spec.template.metadata.annotations["example.com/dropped"]
+      - equal:
+          path: spec.template.metadata.labels["example.com/replicas"]
+          value: "3"
+      - exists:
+          path: spec.template.metadata.annotations["checksum/configmap"]

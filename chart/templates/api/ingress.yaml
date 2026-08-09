@@ -9,9 +9,7 @@ metadata:
     component: api
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
-    {{- with .Values.api.ingress.labels }}
-      {{- toYaml . | nindent 4 }}
-    {{- end }}
+    {{- with (include "banjo.tplAnnotations" (dict "Annotations" .Values.api.ingress.labels "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
   {{- with (include "banjo.tplAnnotations" (dict "Annotations" .Values.api.ingress.annotations "Context" $)) }}
   annotations:
     {{- . | nindent 4 }}

@@ -106,14 +106,10 @@ spec:
   {{- end }}
   template:
     metadata:
+      {{- with (include "banjo.podAnnotations" (dict "Default" $defaults.podAnnotations "Override" $job.podAnnotations "Context" $ "Checksums" true)) }}
       annotations:
-        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
-        {{- with $defaults.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-        {{- with $job.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- . | nindent 8 }}
+      {{- end }}
       labels:
         app: {{ include "banjo.fullname" $ }}
         component: hook

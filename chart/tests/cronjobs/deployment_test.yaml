@@ -647,3 +647,50 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "cronjobs.jobs.dummy.annotations is not read by the chart — renamed to podAnnotations"
+
+  # A CronJob pod reads the current ConfigMap/Secret on every fire, so there is
+  # no rollout for a checksum to trigger.
+  - it: should not put config checksums on a CronJob pod template
+    documentSelector:
+      path: metadata.labels.jobName
+      value: dummy
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      podAnnotations:
+        example.com/root: "kept"
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - equal:
+          path: spec.jobTemplate.spec.template.metadata.annotations["example.com/root"]
+          value: "kept"
+      - notExists:
+          path: spec.jobTemplate.spec.template.metadata.annotations["checksum/configmap"]
+      - notExists:
+          path: spec.jobTemplate.spec.template.metadata.annotations["checksum/secret"]
+
+  - it: should omit the CronJob pod annotations block when nothing is set
+    documentSelector:
+      path: metadata.labels.jobName
+      value: dummy
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - notExists:
+          path: spec.jobTemplate.spec.template.metadata.annotations

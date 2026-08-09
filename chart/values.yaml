@@ -6,6 +6,10 @@ appTypeEnvName: "DJANGO_APP_TYPE"
 # Applies chart-wide to every Deployment the chart renders.
 revisionHistoryLimit: 1
 
+# Applied to every pod template the chart renders. Per-component `podAnnotations`
+# overlay these key-wise, and a component-level `KEY: null` drops an entry set
+# here. Values follow the `api.ingress.annotations` contract below: strings are
+# tpl-evaluated, non-strings render as JSON, `KEY: null` drops the key.
 podLabels: {}
 podAnnotations: {}
 podVolumes: []

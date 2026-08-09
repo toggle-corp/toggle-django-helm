@@ -287,22 +287,40 @@ annotations:
 {{- end }}
 
 {{/*
-Generate default annotations for app pods
+Pod-template annotations for one workload: root `podAnnotations`, then the
+component defaults, then the per-item map, each overlaying the last key-wise.
+A `KEY: null` at any level drops the key. Values are rendered by
+`banjo.tplAnnotations`.
+
+`Checksums` prepends the config checksums that roll pods when the ConfigMap or
+Secret changes. CronJob pods omit them — every fire reads the current config.
+
+Body-only, and empty in, empty out — the caller emits the `annotations:` key and
+guards on this include's result.
+Usage: include "banjo.podAnnotations" (dict "Default" $defaults.podAnnotations "Override" $job.podAnnotations "Context" $ "Checksums" true)
 */}}
-{{- define "banjo.appDefaultAnnotations" -}}
-checksum/secret: {{ include (print .Template.BasePath "/config/secret.yaml") . | sha256sum }}
-checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml") . | sha256sum }}
-{{- with .Values.podAnnotations }}
-{{ toYaml . }}
-{{- end }}
+{{- define "banjo.podAnnotations" -}}
+{{- $ctx := .Context -}}
+{{- $lines := list -}}
+{{- if .Checksums -}}
+{{- $lines = append $lines (printf "checksum/secret: %s" (include (print $ctx.Template.BasePath "/config/secret.yaml") $ctx | sha256sum)) -}}
+{{- $lines = append $lines (printf "checksum/configmap: %s" (include (print $ctx.Template.BasePath "/config/configmap.yaml") $ctx | sha256sum)) -}}
+{{- end -}}
+{{- $ann := deepCopy (default (dict) $ctx.Values.podAnnotations) -}}
+{{- range $k, $v := (default (dict) .Default) }}{{- $_ := set $ann $k $v -}}{{- end -}}
+{{- range $k, $v := (default (dict) .Override) }}{{- $_ := set $ann $k $v -}}{{- end -}}
+{{- with (include "banjo.tplAnnotations" (dict "Annotations" $ann "Context" $ctx)) -}}
+{{- $lines = append $lines . -}}
+{{- end -}}
+{{- join "\n" $lines -}}
 {{- end }}
 
 {{/*
-Render an annotations map as key/value lines. Keys are emitted literally. A
-string value passes through `tpl` so it can reference release data (e.g.
-`{{ .Release.Namespace }}`); any other value is rendered with `toJson`. Either
-way the value lands as a string, which is what k8s requires. A null value drops
-its key, so an overlay can unset a chart default.
+Render an annotations or labels map as key/value lines. Keys are emitted
+literally. A string value passes through `tpl` so it can reference release data
+(e.g. `{{ .Release.Namespace }}`); any other value is rendered with `toJson`.
+Either way the value lands as a string, which is what k8s requires. A null value
+drops its key, so an overlay can unset a chart default.
 
 Body-only, and empty in, empty out — the caller emits the `annotations:` key and
 guards on this include's result.
@@ -321,12 +339,15 @@ Usage: include "banjo.tplAnnotations" (dict "Annotations" $map "Context" $)
 {{- end }}
 
 {{/*
-Generate default labels for app deployments
+Root `podLabels`, rendered onto every pod template the chart emits. Values go
+through `banjo.tplAnnotations`, so a non-string label value lands as the string
+k8s requires and a null drops its key.
+
+Body-only, and empty in, empty out — the caller emits the `labels:` key.
+Usage: include "banjo.appDefaultLabels" $
 */}}
 {{- define "banjo.appDefaultLabels" -}}
-{{- with .Values.podLabels -}}
-{{ toYaml . }}
-{{- end }}
+{{- include "banjo.tplAnnotations" (dict "Annotations" .Values.podLabels "Context" .) -}}
 {{- end }}
 
 {{/*

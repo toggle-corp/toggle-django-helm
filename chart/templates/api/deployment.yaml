@@ -22,11 +22,10 @@ spec:
       component: api
   template:
     metadata:
+      {{- with (include "banjo.podAnnotations" (dict "Override" .Values.api.podAnnotations "Context" $ "Checksums" true)) }}
       annotations:
-        {{- include "banjo.appDefaultAnnotations" $ | nindent 8 }}
-        {{- with .Values.api.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+        {{- . | nindent 8 }}
+      {{- end }}
       labels:
         app: {{ include "banjo.fullname" . }}
         component: api
