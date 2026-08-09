@@ -1,19 +1,73 @@
-# MIGRATION — banjo-helm 0.3.x → 0.4.0
+# MIGRATION — banjo-helm 0.3.x → 0.5.0
 
-**Audience:** Claude (or a human) migrating a downstream `values.yaml` from `banjo-helm` 0.3.x to 0.4.0-devN.
+**Audience:** Claude (or a human) migrating a downstream `values.yaml` onto `banjo-helm` 0.5.0.
 
-**Format:** rename table → section-by-section before/after → behavioral changes → verification protocol.
+**Format:** 0.4.x → 0.5.0 delta → rename table → section-by-section before/after → behavioral changes → verification protocol.
 
 ---
 
 ## How to use this doc
 
+**Already on 0.4.x?** Read only [0.4.x → 0.5.0](#04x--050-annotation-interface) below; nothing else in this doc applies to you.
+
+**Coming from 0.3.x?** Work the whole doc:
+
 1. Read the **rename table** below to spot every breaking key path change in the consumer's `values.yaml`.
 2. For each section that changed, apply the **before / after** transformation literally.
 3. Read **behavioral changes** for things that aren't just renames (replicaCount semantics, hook lifecycle, ttl defaults).
-4. Run the **verification protocol** at the bottom — `helm template` against 0.3.x and 0.4.0, diff the raw output, confirm the diff matches the **expected diff** list.
+4. Apply the **0.4.x → 0.5.0** annotation renames on top.
+5. Run the **verification protocol** at the bottom — `helm template` against 0.3.x and 0.5.0, diff the raw output, confirm the diff matches the **expected diff** list.
 
 If anything in the consumer's values.yaml doesn't match a row in this doc, **stop and ask** — the consumer may have a custom field this migration doesn't cover.
+
+Every key path shown as an "after" state in this doc is a 0.5.0 path.
+
+---
+
+## 0.4.x → 0.5.0 (annotation interface)
+
+0.5.0 renames every annotation key whose name did not match the level it lands on, and puts all annotation, label and `extraEnv` values on one rendering contract.
+
+### Renames
+
+| 0.4.x path | 0.5.0 path | Notes |
+|---|---|---|
+| `api.annotations` | `api.podAnnotations` | Pod template. |
+| `worker.queueDefaults.annotations` | `worker.queueDefaults.podAnnotations` | Pod template. |
+| `worker.queues.<X>.annotations` | `worker.queues.<X>.podAnnotations` | Pod template. |
+| `worker.addonDefaults.annotations` | `worker.addonDefaults.podAnnotations` | Pod template. |
+| `worker.addons.<X>.annotations` | `worker.addons.<X>.podAnnotations` | Pod template. |
+| `cronjobs.defaults.annotations` | `cronjobs.defaults.podAnnotations` | Pod template. |
+| `cronjobs.jobs.<X>.annotations` | `cronjobs.jobs.<X>.podAnnotations` | Pod template. |
+| `hooks.defaults.annotations` | `hooks.defaults.podAnnotations` | Landed on the **pod**, despite the sibling per-job key landing on the Job. |
+| `hooks.jobs.<X>.annotations` | `hooks.jobs.<X>.jobAnnotations` | Landed on the **Job**. This is where the ArgoCD hook/wave annotations go. |
+
+**None of these fail silently.** The chart calls `fail` on every old key and names the replacement, so a stale values.yaml stops the render rather than quietly dropping your annotations.
+
+`api.deploymentAnnotations`, `worker.*.deploymentAnnotations`, `api.ingress.annotations`, `cronjobs.defaults.cronjobAnnotations` and `serviceAccount.annotations` are unchanged — they were already named for the resource they land on.
+
+### New keys
+
+| Path | What |
+|---|---|
+| `hooks.defaults.jobAnnotations` | Job-level annotations for every hook; a per-job `jobAnnotations` merges over it key-wise. |
+| `hooks.jobs.<X>.podAnnotations` | Per-job pod annotations. |
+| `cronjobs.defaults.cronjobAnnotations` | Resource-level CronJob annotations, defaulted to `argocd.argoproj.io/sync-wave: "30"`. See behavioral note 9. |
+
+### Value contract (all annotation, label and `extraEnv` maps)
+
+- A **string** value is `tpl`-evaluated against the root context, so `"{{ .Release.Namespace }}"` resolves. A literal `{{` that is not a valid template now **fails the render** — quote it differently or drop it.
+- Any **non-string** value renders as JSON. `port: 8080` becomes `"8080"`; a nested map becomes `{"a":"b"}`. Previously an int rendered unquoted and k8s rejected it at apply time.
+- `KEY: null` **drops the key**. At a per-item level this unsets an inherited default rather than shadowing it — e.g. `cronjobs.jobs.<X>.cronjobAnnotations: {argocd.argoproj.io/sync-wave: null}` takes one CronJob out of the wave. An annotations block with nothing left in it is omitted entirely.
+
+Applies to: every `*Annotations` key, `podLabels`, `api.ingress.labels`, `serviceAccount.annotations`/`labels`, and every `extraEnv` map.
+
+### Guards
+
+Two render-time failures are new. Both catch a setting that would otherwise render fine and do nothing:
+
+- An `argocd.argoproj.io/sync-wave` in any **pod-level** map (`podAnnotations`) fails and points at the resource-level key for that component. ArgoCD reads the wave off the resource, never off a pod template.
+- `cronjobs.cronjobAnnotations` at the parent level (rather than under `cronjobs.defaults`) fails.
 
 ---
 
@@ -21,7 +75,7 @@ If anything in the consumer's values.yaml doesn't match a row in this doc, **sto
 
 Every breaking path change in one table. Left → right.
 
-| 0.3.x path | 0.4.0 path | Notes |
+| 0.3.x path | 0.5.0 path | Notes |
 |---|---|---|
 | `global.security.allowInsecureImages` | _(removed)_ | Bitnami-only; subcharts dropped. |
 | `redis:` (whole block) | _(removed)_ | Use separate infrastructure chart. |
@@ -34,7 +88,7 @@ Every breaking path change in one table. Left → right.
 | `argoHook.hooks` | `hooks.jobs` | |
 | `argoHook.image` | `hooks.defaults.image` | |
 | `argoHook.resources` | `hooks.defaults.resources` | |
-| `argoHook.hooks.<X>.hook` | `hooks.jobs.<X>.annotations["argocd.argoproj.io/hook"]` | No shortcut; write the annotation. |
+| `argoHook.hooks.<X>.hook` | `hooks.jobs.<X>.jobAnnotations["argocd.argoproj.io/hook"]` | No shortcut; write the annotation. |
 | `argoHook.hooks.<X>.preserveHistory` | `hooks.jobs.<X>.useGenerateName` | Renamed. |
 | `argoHook.hooks.<X>.env` | `hooks.jobs.<X>.extraEnv` | Renamed. |
 | `worker.beat` (block) | `worker.addons.beat` (entry) | Now an addon, not a first-class field. |
@@ -74,14 +128,14 @@ api:
       memory: 1Gi
 ```
 
-**After (0.4.0):**
+**After (0.5.0):**
 ```yaml
 api:
   enabled: true
   # Drop replicaCount unless you need a static count (KEDA owns scaling).
   containerPort: 80
   command: ["/code/deploy/run_prod.sh"]   # keep your entrypoint
-  # annotations: {}     # new; per-pod annotations
+  # podAnnotations: {}  # new; per-pod annotations
   # extraEnv: {}        # new; tpl-evaluated inline env
   resources:
     requests:
@@ -111,7 +165,7 @@ api:
   # ...
 ```
 
-**After (0.4.0):**
+**After (0.5.0):**
 ```yaml
 api:
   enabled: true
@@ -151,14 +205,14 @@ worker:
       resources: {}
 ```
 
-**After (0.4.0):**
+**After (0.5.0):**
 ```yaml
 worker:
   enabled: true
   queueDefaults:
     commandPrefix: ["celery", "-A", "myapp", "worker", "-l", "INFO"]
     # extraEnv: {}
-    # annotations: {}
+    # podAnnotations: {}
     resources:
       requests: { cpu: "1", memory: 1Gi }
       limits:   { memory: 2Gi }     # NO CPU limit
@@ -189,7 +243,7 @@ worker:
     resources: { requests: { cpu: "0.1", memory: 0.5Gi }, limits: { cpu: "1", memory: 1Gi } }
 ```
 
-**After (0.4.0):**
+**After (0.5.0):**
 ```yaml
 worker:
   addonDefaults:
@@ -241,7 +295,7 @@ cronjobs:
         FOO: bar
 ```
 
-**After (0.4.0):**
+**After (0.5.0):**
 ```yaml
 cronjobs:
   enabled: true
@@ -287,7 +341,7 @@ argoHook:
       command: ["./manage.py", "collectstatic", "--noinput"]
 ```
 
-**After (0.4.0):**
+**After (0.5.0):**
 ```yaml
 hooks:
   enabled: true
@@ -302,23 +356,23 @@ hooks:
       useGenerateName: true                 # was preserveHistory
       activeDeadlineSeconds: 3600
       ttlSecondsAfterFinished: 604800       # 7 days; k8s-native cleanup
-      annotations:
+      jobAnnotations:
         argocd.argoproj.io/hook: "PostSync"
         argocd.argoproj.io/sync-wave: "20"
         # NO hook-delete-policy — inert with generateName. See behavioral notes.
       command: ["./manage.py", "migrate"]
     collect-static:
       enabled: true
-      annotations:
+      jobAnnotations:
         argocd.argoproj.io/hook: "PostSync"
         argocd.argoproj.io/sync-wave: "20"
         argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
       command: ["./manage.py", "collectstatic", "--noinput"]
 ```
 
-**For Helm-only consumers (not ArgoCD):** the same `hooks.jobs.<X>.annotations` block works. Substitute the annotation namespace:
+**For Helm-only consumers (not ArgoCD):** the same `hooks.jobs.<X>.jobAnnotations` block works. Substitute the annotation namespace:
 ```yaml
-annotations:
+jobAnnotations:
   helm.sh/hook: post-install,post-upgrade
   helm.sh/hook-weight: "0"
   helm.sh/hook-delete-policy: before-hook-creation
@@ -338,7 +392,7 @@ secrets:
   POSTGRES_HOST: "{{ include \"postgresql.v1.primary.fullname\" $.Subcharts.postgresql }}"
 ```
 
-**After (0.4.0):** delete all four blocks. Rewrite `secrets:` using plain references — the consumer is expected to provision Redis/Postgres/RabbitMQ/Minio via a separate infrastructure chart or external service.
+**After (0.5.0):** delete all four blocks. Rewrite `secrets:` using plain references — the consumer is expected to provision Redis/Postgres/RabbitMQ/Minio via a separate infrastructure chart or external service.
 
 ```yaml
 secrets:
@@ -477,18 +531,30 @@ banjo-helm + banjo-alpha-deps deploy as **one multi-source ArgoCD Application**.
 | 0 | deps (tcpg, dragonfly, minio) — in `banjo-alpha-deps`, **not** this chart | none (regular `Sync` resources; ArgoCD gates the whole wave on their readiness probes) |
 | 10 | `wait-for-resources` | `argocd.argoproj.io/hook: Sync` |
 | 20 | `db-migrate`, `collect-static` | `argocd.argoproj.io/hook: Sync` |
-| 30 | `api`, `worker` (all queues), `worker.addons` (incl. beat), `api.ingress` | `argocd.argoproj.io/sync-wave: "30"` |
+| 30 | `api`, `worker` (all queues), `worker.addons` (incl. beat), `api.ingress`, `cronjobs` | `argocd.argoproj.io/sync-wave: "30"` |
 
 Three behavioral changes vs the previous 0.4.0-devN shape:
 
 - **Hooks are now `Sync`, not `PostSync`.** `PostSync` ran *after* the app was already serving — migrations could lag a live api. `Sync` (combined with the waves above) runs them mid-sync, after deps are healthy but before app workloads. `PreSync` is deliberately **not** used: it runs before deps are even applied, deadlocking bootstrap.
-- **App workloads are gated at sync-wave 30.** `api`, `worker` (all queues), `worker.addons` (incl. beat) and `api.ingress` now carry `argocd.argoproj.io/sync-wave: "30"` on the **resource** (Deployment/Ingress) metadata, so ArgoCD won't start them until the wave-10/20 hooks succeed. The wave is a normal resource-level annotation default, not a custom value — it lives in `api.deploymentAnnotations`, `worker.queueDefaults.deploymentAnnotations`, `worker.addonDefaults.deploymentAnnotations`, and `api.ingress.annotations` (each defaulted to `{argocd.argoproj.io/sync-wave: "30"}`). Note `deploymentAnnotations` is the resource-level surface — distinct from the pod-level `annotations` on those same components. To change or drop the wave, override the relevant `deploymentAnnotations` map (the chart still adds `reloader.stakater.com/auto`; under plain `helm install` the inert annotation is harmless). `cronjobs` are intentionally **not** waved.
+- **App workloads are gated at sync-wave 30.** `api`, `worker` (all queues), `worker.addons` (incl. beat), `api.ingress` and (since 0.5.0) `cronjobs` now carry `argocd.argoproj.io/sync-wave: "30"` on the **resource** (Deployment/Ingress/CronJob) metadata, so ArgoCD won't start them until the wave-10/20 hooks succeed. The wave is a normal resource-level annotation default, not a custom value — it lives in `api.deploymentAnnotations`, `worker.queueDefaults.deploymentAnnotations`, `worker.addonDefaults.deploymentAnnotations`, `api.ingress.annotations` and `cronjobs.defaults.cronjobAnnotations` (each defaulted to `{argocd.argoproj.io/sync-wave: "30"}`). Note the resource-level surface is always named for the kind it lands on — distinct from `podAnnotations` on those same components. To change or drop the wave, override the relevant map, or null the single key (`argocd.argoproj.io/sync-wave: null`). Under plain `helm install` the annotation is inert and harmless.
 - **`wait-for-resources` is enabled by default.** It was opt-in before. It gates api/worker on config + connectivity validation and **requires** the `wait_for_resources` management command from [banjo-utils](https://github.com/toggle-corp/banjo-utils). If your app image does not ship that command, set `hooks.jobs.wait-for-resources.enabled: false` or the sync will hang on a failing wave-10 hook.
 
 **Migration:**
 - ArgoCD consumers: no values change needed for the common case — the chart seeds the correct phase/waves. Ensure your deps live in wave 0 (unannotated regular resources) and that your image ships `wait_for_resources` (banjo-utils), or disable that hook.
 - Plain Helm consumers: the sync-wave annotation is inert under Helm; leave it, or override the `*.deploymentAnnotations` / `api.ingress.annotations` maps to drop it. Hook phase is governed by the `argocd.argoproj.io/*` annotations, which Helm ignores anyway.
 - If you previously relied on hooks running `PostSync` (after api was up), note they now block the app at wave 20.
+
+---
+
+### 9. CronJobs joined sync-wave 30 (BREAKING, 0.5.0)
+
+Earlier 0.4.x releases left `cronjobs` unwaved, so ArgoCD applied them in wave 0 — a CronJob could fire while `db-migrate` (wave 20) was still running, hitting a missing schema on a fresh install, or run new code against the old schema on an upgrade.
+
+0.5.0 adds `cronjobs.defaults.cronjobAnnotations`, defaulted to `argocd.argoproj.io/sync-wave: "30"`, on the CronJob **resource** metadata.
+
+**The wave defers when ArgoCD *applies* the CronJob; it does not suspend one that is already applied.** A CronJob left over from the previous sync can still fire the previous image during a wave-20 migration. Migrations must stay backward-compatible with the N-1 image — the same constraint `api` already lives under during a rolling update.
+
+**Migration:** no values change for the common case. To take a CronJob out of the wave, null the key: `cronjobs.jobs.<X>.cronjobAnnotations: {argocd.argoproj.io/sync-wave: null}`. Note `cronjobAnnotations: {}` does **not** clear it — Helm deep-merges maps.
 
 ---
 
@@ -502,7 +568,7 @@ helm template <release> <old-chart-path> -f <old-values.yaml> > /tmp/before.yaml
 
 # 2. Apply the migration to <old-values.yaml> per this guide
 
-# 3. Render with the 0.4.0 chart
+# 3. Render with the 0.5.0 chart
 helm template <release> <new-chart-path> -f <new-values.yaml> > /tmp/after.yaml
 
 # 4. Diff
@@ -514,7 +580,7 @@ diff /tmp/before.yaml /tmp/after.yaml | less
 - `spec.revisionHistoryLimit: 1` on every Deployment.
 - `argocd.argoproj.io/sync-wave: "10"|"20"` and `argocd.argoproj.io/hook: Sync` annotations on hook Jobs.
 - A third hook Job, `wait-for-resources` (wave 10), now rendered by default.
-- `argocd.argoproj.io/sync-wave: "30"` on the api, worker-queue, worker-addon (incl. beat) Deployments and the api Ingress.
+- `argocd.argoproj.io/sync-wave: "30"` on the api, worker-queue, worker-addon (incl. beat) Deployments, the api Ingress, and every CronJob.
 - `spec.ttlSecondsAfterFinished: 604800` on the db-migrate Job.
 - `spec.activeDeadlineSeconds: 3600` on the db-migrate Job.
 - **Absent**: `argocd.argoproj.io/hook-delete-policy` annotation on the db-migrate Job (regression guard).
@@ -524,7 +590,7 @@ diff /tmp/before.yaml /tmp/after.yaml | less
 - `spec.template.spec.containers[0].lifecycle.preStop.sleep.seconds: 8` on the api Deployment (unless `api.lifecycle.preStopSleepSeconds` was overridden).
 - `spec.template.spec.terminationGracePeriodSeconds: 38` on the api Deployment (unless `api.terminationGracePeriodSeconds` was set explicitly, or preStop was disabled).
 - Image refs and labels using `banjo-helm-*` naming (was `django-app-*`).
-- The hook Job's `metadata.annotations` block now contains everything from `hooks.jobs.<X>.annotations` verbatim.
+- The hook Job's `metadata.annotations` block now contains everything from `hooks.defaults.jobAnnotations` + `hooks.jobs.<X>.jobAnnotations` (per-job wins per key).
 
 ### Suspicious diff (investigate if you see these)
 
@@ -546,4 +612,4 @@ helm unittest <new-chart-path> -f "tests/**/*_test.yaml"
 
 ## Versioning
 
-This is a `0.4.0-devN` release — pre-stable. Iterate dev tags on a real cluster against downstream apps until no `-devN` cycle introduces a change in two consecutive dogfooding rounds, then cut `0.4.0` (no suffix).
+Pre-stable. Iterate dev tags on a real cluster against downstream apps until no `-devN` cycle introduces a change in two consecutive dogfooding rounds, then cut the release without a suffix.
