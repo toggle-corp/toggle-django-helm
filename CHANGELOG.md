@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.5.0-dev0](https://github.com/toggle-corp/banjo-helm/compare/0.4.1..0.5.0-dev0) - 2026-08-09
+### Changes:
+
+#### 🚀  Features
+
+- *(chart)* Add per-component resource label surfaces - ([fb3ae8e](https://github.com/toggle-corp/banjo-helm/commit/fb3ae8ee55461411751c4d18c11a1b822fdc53db))
+- *(chart)* Add chart-wide commonLabels for resource metadata - ([53c0575](https://github.com/toggle-corp/banjo-helm/commit/53c05752e47149f17b8f103e9939e5296f8c19a8))
+- *(chart)* Guard inert sync-waves on every pod-level annotations map - ([cd3c97c](https://github.com/toggle-corp/banjo-helm/commit/cd3c97c8401fca8a591a868b5a9d6ab427422f15))
+- *(chart)* Add chart-wide commonAnnotations for resource metadata - ([6c37dbc](https://github.com/toggle-corp/banjo-helm/commit/6c37dbcf9cfc802c5098ceb9866947c6c0d911c1))
+- *(chart)* Render pod annotations, labels and serviceAccount metadata via tplAnnotations - ([7192d93](https://github.com/toggle-corp/banjo-helm/commit/7192d9312cad45e09a762b4420ea6c0eeb17e04c))
+- *(chart)* [**breaking**] Rename per-component annotations to podAnnotations - ([2030622](https://github.com/toggle-corp/banjo-helm/commit/2030622702b1143c66ce29e0a3a73907c52e0aea))
+- *(chart)* [**breaking**] Render resource annotation values via tplAnnotations - ([50d4a8f](https://github.com/toggle-corp/banjo-helm/commit/50d4a8fa373fe3875e30a2e4b322271bfd145d33))
+- *(chart)* Fail on scheduling keys placed at an unread level - ([878fd10](https://github.com/toggle-corp/banjo-helm/commit/878fd10dc3f3364fb262e71822619ba451bc8ff6))
+- *(cronjobs)* [**breaking**] Apply CronJobs at ArgoCD sync-wave 30 - ([1d01567](https://github.com/toggle-corp/banjo-helm/commit/1d015676d7eb5699a83a1db0e1d143c77d580dfe))
+- *(hooks)* [**breaking**] Split hook annotations into jobAnnotations and podAnnotations - ([5fb60af](https://github.com/toggle-corp/banjo-helm/commit/5fb60af7af2d7b98c7f8e7fb0e1ed9ce36a7011a))
+- *(scheduling)* Add nodeSelector/tolerations/affinity/topologySpreadConstraints passthrough - ([5d1df05](https://github.com/toggle-corp/banjo-helm/commit/5d1df05d9d3ed05f2d5fd0fb4d04697d2bb8747f))
+
+#### 🐛 Bug Fixes
+
+- *(chart)* Guard reserved label keys on the Ingress - ([0616b2d](https://github.com/toggle-corp/banjo-helm/commit/0616b2d40f271003496ed30617f20544f028c0d5))
+- *(chart)* Render non-string extraEnv values via toJson - ([b513e8a](https://github.com/toggle-corp/banjo-helm/commit/b513e8aa1aac914fb6bc96f6074067320689ee89))
+- *(chart)* Let a per-item extraEnv null unset a component default - ([ecca577](https://github.com/toggle-corp/banjo-helm/commit/ecca5774621aac56e491fabe6d5c3b8604d1f9fc))
+- *(chart)* Withhold root affinity from hook pods, allow clearing - ([7b34482](https://github.com/toggle-corp/banjo-helm/commit/7b34482b72aaed85d2789a636aa70f46ad293697))
+- *(config)* Render non-string env/secret values via toJson - ([2bff10e](https://github.com/toggle-corp/banjo-helm/commit/2bff10efab715faea80580a5e9ddad34a4cf4de1))
+- *(config)* Coerce non-string env/secret values and skip nil - ([94a93ca](https://github.com/toggle-corp/banjo-helm/commit/94a93ca4bb5fa7b31f28be49ac1a294bc01f944c))
+
+#### 📚 Documentation
+
+- *(config)* State the env/secrets value contract, including null - ([e5137b2](https://github.com/toggle-corp/banjo-helm/commit/e5137b257c47224dc9816ddbf270879f1023da2b))
+- *(migration)* Retarget to 0.5.0 and add the annotation-interface delta - ([8474a21](https://github.com/toggle-corp/banjo-helm/commit/8474a21a2dce0b81f16cd80b4f0ba131029803c0))
+- *(readme)* Add a chart README - ([6ccf384](https://github.com/toggle-corp/banjo-helm/commit/6ccf384a868e220105dc05264debcf21a89e7f95))
+
+
 ## [0.4.1](https://github.com/toggle-corp/banjo-helm/compare/0.4.0..0.4.1) - 2026-07-09
 ### Changes:
 
