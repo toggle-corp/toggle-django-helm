@@ -28,10 +28,9 @@ kind: ConfigMap
 metadata:
   name: release-name-banjo-helm-run-shell-script-files
   annotations:
-    argocd.argoproj.io/hook: "Sync"
-    argocd.argoproj.io/sync-wave: "20"
-    # Refresh content on every sync and clean up before the next run.
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "20"
   labels:
     app: release-name-banjo-helm
     component: hook

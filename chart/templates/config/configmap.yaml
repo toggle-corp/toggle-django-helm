@@ -2,6 +2,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: {{ template "banjo.envConfigMapName" . }}
+  {{- with (include "banjo.resourceAnnotations" (dict "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" . }}
     environment: {{ .Values.environment }}

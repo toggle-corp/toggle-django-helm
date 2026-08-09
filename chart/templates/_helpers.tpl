@@ -249,29 +249,17 @@ Usage: include "banjo.extraEnvBlock" (dict "Default" $defaultsBlock "Override" $
 {{- end }}
 
 {{/*
-Resource-level annotations for an app Deployment. Values are rendered by
-`banjo.tplAnnotations`. `reloader.stakater.com/auto` is always present — a
-caller-supplied value for that key does not win.
+Annotations for one resource's own metadata, layered lowest to highest:
+root `commonAnnotations`, the component defaults, then the per-item map. A
+`KEY: null` at any level drops the key, so an item can opt out of a shared
+annotation rather than only shadow it.
 
-Body-only: emits the `annotations:` key, caller indents.
-Usage: include "banjo.appDefaultDeploymentAnnotations" (dict "Annotations" $map "Context" $)
-*/}}
-{{- define "banjo.appDefaultDeploymentAnnotations" -}}
-{{- $ann := merge (deepCopy (default (dict) .Annotations)) (dict "reloader.stakater.com/auto" "true") -}}
-annotations:
-  {{- include "banjo.tplAnnotations" (dict "Annotations" $ann "Context" .Context) | nindent 2 }}
-{{- end }}
-
-{{/*
-Resource-level annotations for one CronJob or hook Job: a per-item map merged
-key-wise over the component defaults, per-item winning. A per-item `KEY: null`
-drops the key, so one item can opt out of a shared annotation rather than only
-shadow it.
+`Reloader` adds `reloader.stakater.com/auto: "true"` unless one of the layers
+already names that key, so a caller can change its value or null it away.
+Long-lived workloads set it; a CronJob reads its ConfigMap/Secret on every fire
+and a hook Job runs once, so neither has a pod for Reloader to restart.
 
 Values are rendered by `banjo.tplAnnotations`.
-
-Emits no reloader.stakater.com/auto — a CronJob reads its ConfigMap/Secret on
-every fire and a hook Job runs once, so there is no long-lived pod to restart.
 
 Body-only: emits the `annotations:` key, guards emptiness, caller indents.
 Usage: include "banjo.resourceAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations "Context" $)
@@ -279,8 +267,12 @@ Usage: include "banjo.resourceAnnotations" (dict "Default" $defaults.cronjobAnno
 {{- define "banjo.resourceAnnotations" -}}
 {{- /* Overlay by hand rather than `merge`: mergo skips nil source values, so an
        override of `KEY: null` would be dropped before it could unset the default. */ -}}
-{{- $ann := deepCopy (default (dict) .Default) -}}
+{{- $ann := deepCopy (default (dict) .Context.Values.commonAnnotations) -}}
+{{- range $k, $v := (default (dict) .Default) }}{{- $_ := set $ann $k $v -}}{{- end -}}
 {{- range $k, $v := (default (dict) .Override) }}{{- $_ := set $ann $k $v -}}{{- end -}}
+{{- if and .Reloader (not (hasKey $ann "reloader.stakater.com/auto")) -}}
+{{- $_ := set $ann "reloader.stakater.com/auto" "true" -}}
+{{- end -}}
 {{- with (include "banjo.tplAnnotations" (dict "Annotations" $ann "Context" .Context)) -}}
 annotations:
   {{- . | nindent 2 }}

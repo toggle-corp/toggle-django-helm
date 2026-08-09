@@ -518,9 +518,8 @@ tests:
       - notExists:
           path: metadata.annotations
 
-  # CronJobs render through banjo.cronjobAnnotations, not
-  # banjo.appDefaultDeploymentAnnotations, which force-injects the reloader
-  # annotation.
+  # CronJobs call banjo.resourceAnnotations without Reloader — a CronJob reads
+  # its ConfigMap/Secret on every fire, so there is no pod to restart.
   - it: should not put the reloader annotation on a CronJob
     set:
       image:

@@ -5,6 +5,11 @@ podLabels:
 podAnnotations:
   aws.workload.identity/use: "true"
 
+# Resource-level, so this lands on every chart-rendered object's own metadata
+# and on none of the pod templates. extraManifests below stay untouched.
+commonAnnotations:
+  example.com/owner: "platform"
+
 image:
   name: ghcr.io/example/example
   tag: v1.0.1

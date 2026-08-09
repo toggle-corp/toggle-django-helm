@@ -59,15 +59,13 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ $cmName }}
-  annotations:
-    {{- with (get $ann "argocd.argoproj.io/hook") }}
-    argocd.argoproj.io/hook: {{ . | quote }}
-    {{- end }}
-    {{- with (get $ann "argocd.argoproj.io/sync-wave") }}
-    argocd.argoproj.io/sync-wave: {{ . | quote }}
-    {{- end }}
-    # Refresh content on every sync and clean up before the next run.
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  {{- /* Track the Job's hook phase and wave so the files land with it. The
+         delete-policy is forced to BeforeHookCreation: the content is refreshed
+         on every sync and cleaned up before the next run. */ -}}
+  {{- $cmAnn := dict "argocd.argoproj.io/hook-delete-policy" "BeforeHookCreation" -}}
+  {{- with (get $ann "argocd.argoproj.io/hook") }}{{- $_ := set $cmAnn "argocd.argoproj.io/hook" . -}}{{- end }}
+  {{- with (get $ann "argocd.argoproj.io/sync-wave") }}{{- $_ := set $cmAnn "argocd.argoproj.io/sync-wave" . -}}{{- end }}
+  {{- with (include "banjo.resourceAnnotations" (dict "Override" $cmAnn "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" $ }}
     component: hook

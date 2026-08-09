@@ -10,10 +10,7 @@ metadata:
     environment: {{ .Values.environment }}
     release: {{ .Release.Name }}
     {{- with (include "banjo.tplAnnotations" (dict "Annotations" .Values.api.ingress.labels "Context" $)) -}}{{ . | nindent 4 }}{{- end }}
-  {{- with (include "banjo.tplAnnotations" (dict "Annotations" .Values.api.ingress.annotations "Context" $)) }}
-  annotations:
-    {{- . | nindent 4 }}
-  {{- end }}
+  {{- with (include "banjo.resourceAnnotations" (dict "Override" .Values.api.ingress.annotations "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
 spec:
   {{- with .Values.api.ingress.className }}
   ingressClassName: {{ . | quote }}

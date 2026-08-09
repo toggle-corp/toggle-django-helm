@@ -25,11 +25,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "banjo.fullname" $ }}-worker-{{ $queue_name }}
-  {{- /* Overlay by hand rather than `merge`: mergo skips nil source values, so a
-         per-queue `KEY: null` would be dropped before it could unset the default. */ -}}
-  {{- $deployAnnotations := deepCopy (default (dict) $defaults.deploymentAnnotations) }}
-  {{- range $k, $v := (default (dict) $config.deploymentAnnotations) }}{{- $_ := set $deployAnnotations $k $v -}}{{- end }}
-  {{- with (include "banjo.appDefaultDeploymentAnnotations" (dict "Annotations" $deployAnnotations "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
+  {{- with (include "banjo.resourceAnnotations" (dict "Default" $defaults.deploymentAnnotations "Override" $config.deploymentAnnotations "Context" $ "Reloader" true)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" $ }}
     component: worker

@@ -4,6 +4,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ template "banjo.fullname" . }}-api
+  {{- with (include "banjo.resourceAnnotations" (dict "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" . }}
     component: api

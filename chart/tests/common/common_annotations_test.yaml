@@ -1,0 +1,182 @@
+suite: commonAnnotations tests
+templates:
+  - templates/api/deployment.yaml
+  - templates/api/service.yaml
+  - templates/api/ingress.yaml
+  - templates/api/service-account.yaml
+  - templates/config/configmap.yaml
+  - templates/config/secret.yaml
+  - templates/cronjobs/deployment.yaml
+  - templates/hooks/job.yaml
+  - templates/worker/deployment.yaml
+tests:
+  - it: should land on the api Deployment, Service, Ingress and ServiceAccount
+    templates:
+      - templates/api/deployment.yaml
+      - templates/api/service.yaml
+      - templates/api/ingress.yaml
+      - templates/api/service-account.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonAnnotations:
+        example.com/owner: "platform"
+      serviceAccount:
+        create: true
+      api:
+        enabled: true
+        ingress:
+          enabled: true
+          host: myapp.example.com
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: "platform"
+
+  - it: should land on the env ConfigMap and Secret
+    templates:
+      - templates/config/configmap.yaml
+      - templates/config/secret.yaml
+    set:
+      commonAnnotations:
+        example.com/owner: "platform"
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: "platform"
+
+  - it: should land on the CronJob resource but not its pod template
+    template: templates/cronjobs/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonAnnotations:
+        example.com/owner: "platform"
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: "platform"
+      # the chart default survives alongside it
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "30"
+      - notExists:
+          path: spec.jobTemplate.spec.template.metadata.annotations["example.com/owner"]
+
+  - it: should land on hook Jobs and their files ConfigMap
+    template: templates/hooks/job.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonAnnotations:
+        example.com/owner: "platform"
+      hooks:
+        enabled: true
+        jobs:
+          seed:
+            enabled: true
+            command: ["sh", "-c", "true"]
+            files:
+              seed.py: "print('hi')"
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: "platform"
+
+  - it: should lose to a component-level key on conflict
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonAnnotations:
+        example.com/owner: "from-common"
+        example.com/team: "from-common"
+      api:
+        enabled: true
+        deploymentAnnotations:
+          example.com/owner: "from-api"
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: "from-api"
+      - equal:
+          path: metadata.annotations["example.com/team"]
+          value: "from-common"
+
+  - it: should be droppable per component with a null
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonAnnotations:
+        example.com/owner: "from-common"
+      api:
+        enabled: true
+        deploymentAnnotations:
+          example.com/owner: null
+    asserts:
+      - notExists:
+          path: metadata.annotations["example.com/owner"]
+
+  - it: should follow the shared value contract
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      commonAnnotations:
+        example.com/port: 8080
+        example.com/namespace: "{{ .Release.Namespace }}"
+      api:
+        enabled: true
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/port"]
+          value: "8080"
+      - equal:
+          path: metadata.annotations["example.com/namespace"]
+          value: NAMESPACE
+
+  - it: should let a component null away the reloader annotation
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        deploymentAnnotations:
+          reloader.stakater.com/auto: null
+    asserts:
+      - notExists:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+      - equal:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+          value: "30"
+
+  - it: should let a component override the reloader value
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        deploymentAnnotations:
+          reloader.stakater.com/auto: "false"
+    asserts:
+      - equal:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+          value: "false"

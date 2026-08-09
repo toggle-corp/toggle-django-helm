@@ -4,6 +4,8 @@ kind: Secret
 apiVersion: v1
 metadata:
   name: release-name-banjo-helm-secret
+  annotations:
+    example.com/owner: platform
   labels:
     app: release-name-banjo-helm
     environment: ALPHA
@@ -30,6 +32,8 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: release-name-banjo-helm-env-name
+  annotations:
+    example.com/owner: platform
   labels:
     app: release-name-banjo-helm
     environment: ALPHA
@@ -64,6 +68,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: release-name-banjo-helm-api
+  annotations:
+    example.com/owner: platform
   labels:
     app: release-name-banjo-helm
     component: api
@@ -86,6 +92,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: release-name-banjo-helm-worker-flower
+  annotations:
+    example.com/owner: platform
   labels:
     app: release-name-banjo-helm
     component: worker-addon
@@ -111,6 +119,7 @@ metadata:
   name: release-name-banjo-helm-api
   annotations:
     argocd.argoproj.io/sync-wave: "30"
+    example.com/owner: platform
     reloader.stakater.com/auto: "true"
   labels:
     app: release-name-banjo-helm
@@ -126,8 +135,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 66a6fc24b76971f276c49234b716b2b8226b4c72a18511215a54ab9a414b4d53
-        checksum/configmap: 3f5505b0f56b1094e754509a8dd06e18d87db0905c755ea4b4ab0cc647f29da3
+        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
+        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -172,6 +181,7 @@ metadata:
   name: release-name-banjo-helm-worker-flower
   annotations:
     argocd.argoproj.io/sync-wave: "30"
+    example.com/owner: platform
     reloader.stakater.com/auto: "true"
   labels:
     app: release-name-banjo-helm
@@ -189,8 +199,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 66a6fc24b76971f276c49234b716b2b8226b4c72a18511215a54ab9a414b4d53
-        checksum/configmap: 3f5505b0f56b1094e754509a8dd06e18d87db0905c755ea4b4ab0cc647f29da3
+        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
+        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -236,6 +246,7 @@ metadata:
   name: release-name-banjo-helm-worker-array-form-queue
   annotations:
     argocd.argoproj.io/sync-wave: "30"
+    example.com/owner: platform
     reloader.stakater.com/auto: "true"
   labels:
     app: release-name-banjo-helm
@@ -253,8 +264,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 66a6fc24b76971f276c49234b716b2b8226b4c72a18511215a54ab9a414b4d53
-        checksum/configmap: 3f5505b0f56b1094e754509a8dd06e18d87db0905c755ea4b4ab0cc647f29da3
+        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
+        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -302,6 +313,7 @@ metadata:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
     argocd.argoproj.io/sync-wave: "20"
+    example.com/owner: platform
   labels:
     app: release-name-banjo-helm
     component: hook
@@ -312,8 +324,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 66a6fc24b76971f276c49234b716b2b8226b4c72a18511215a54ab9a414b4d53
-        checksum/configmap: 3f5505b0f56b1094e754509a8dd06e18d87db0905c755ea4b4ab0cc647f29da3
+        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
+        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -354,6 +366,7 @@ metadata:
   annotations:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/sync-wave: "20"
+    example.com/owner: platform
   labels:
     app: release-name-banjo-helm
     component: hook
@@ -366,8 +379,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 66a6fc24b76971f276c49234b716b2b8226b4c72a18511215a54ab9a414b4d53
-        checksum/configmap: 3f5505b0f56b1094e754509a8dd06e18d87db0905c755ea4b4ab0cc647f29da3
+        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
+        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -408,6 +421,7 @@ metadata:
     argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
     argocd.argoproj.io/sync-wave: "10"
+    example.com/owner: platform
   labels:
     app: release-name-banjo-helm
     component: hook
@@ -418,8 +432,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/secret: 66a6fc24b76971f276c49234b716b2b8226b4c72a18511215a54ab9a414b4d53
-        checksum/configmap: 3f5505b0f56b1094e754509a8dd06e18d87db0905c755ea4b4ab0cc647f29da3
+        checksum/secret: 03048ff3dae10991a62a2569260d436d019b941b4e02fe39412dfecbc8d46b87
+        checksum/configmap: 923ff539fe77bd4f4f97466759966825e5d17cc84cc06c968a11bfc56e12ab23
         aws.workload.identity/use: "true"
       labels:
         app: release-name-banjo-helm
@@ -464,6 +478,7 @@ metadata:
     release: release-name
   annotations:
     argocd.argoproj.io/sync-wave: "30"
+    example.com/owner: platform
 spec:
   ingressClassName: "nginx"
   rules:

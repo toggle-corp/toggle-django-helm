@@ -6,6 +6,17 @@ appTypeEnvName: "DJANGO_APP_TYPE"
 # Applies chart-wide to every Deployment the chart renders.
 revisionHistoryLimit: 1
 
+# Applied to every resource the chart renders (Deployments, CronJob, hook Jobs,
+# Ingress, Services, ConfigMap, Secret, ServiceAccount, SecretProviderClass) on
+# the object's own metadata — NOT the pod template. Component-level keys
+# (`api.deploymentAnnotations`, `cronjobs.defaults.cronjobAnnotations`,
+# `hooks.*.jobAnnotations`, `api.ingress.annotations`, `serviceAccount.annotations`)
+# overlay these key-wise, and a `KEY: null` at either level drops the entry.
+# Values follow the `api.ingress.annotations` contract below.
+#
+# Does not reach `extraManifests` — those render verbatim.
+commonAnnotations: {}
+
 # Applied to every pod template the chart renders. Per-component `podAnnotations`
 # overlay these key-wise, and a component-level `KEY: null` drops an entry set
 # here. Values follow the `api.ingress.annotations` contract below: strings are
