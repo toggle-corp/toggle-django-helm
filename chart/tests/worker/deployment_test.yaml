@@ -71,6 +71,33 @@ tests:
           path: metadata.annotations["reloader.stakater.com/auto"]
           value: "true"
 
+  - it: should let a per-queue null deploymentAnnotation unset a queueDefaults key
+    template: templates/worker/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      worker:
+        enabled: true
+        queueDefaults:
+          deploymentAnnotations:
+            example.com/owner: "platform"
+        queues:
+          default:
+            enabled: true
+            celeryArgs: ["-Q", "celery"]
+            deploymentAnnotations:
+              argocd.argoproj.io/sync-wave: null
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/owner"]
+          value: "platform"
+      - notExists:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+      - equal:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+          value: "true"
+
   - it: should render Deployment with queue label, command prefix + celeryArgs and image
     template: templates/worker/deployment.yaml
     documentSelector:

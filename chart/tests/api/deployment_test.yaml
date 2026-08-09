@@ -78,6 +78,36 @@ tests:
           path: metadata.annotations["reloader.stakater.com/auto"]
           value: "true"
 
+  - it: should coerce, tpl-evaluate and null-drop api.deploymentAnnotations values
+    template: templates/api/deployment.yaml
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      api:
+        enabled: true
+        deploymentAnnotations:
+          example.com/port: 8080
+          example.com/config:
+            retries: 3
+          example.com/namespace: "{{ .Release.Namespace }}"
+          argocd.argoproj.io/sync-wave: null
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/port"]
+          value: "8080"
+      - equal:
+          path: metadata.annotations["example.com/config"]
+          value: '{"retries":3}'
+      - equal:
+          path: metadata.annotations["example.com/namespace"]
+          value: NAMESPACE
+      - notExists:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+      - equal:
+          path: metadata.annotations["reloader.stakater.com/auto"]
+          value: "true"
+
   - it: should override revisionHistoryLimit when set chart-wide
     template: templates/api/deployment.yaml
     set:

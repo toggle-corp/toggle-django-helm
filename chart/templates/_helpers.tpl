@@ -248,29 +248,40 @@ Usage: include "banjo.extraEnvBlock" (dict "Default" $defaultsBlock "Override" $
 {{- end }}
 
 {{/*
-Generate default annotations for app deployments
+Resource-level annotations for an app Deployment. Values are rendered by
+`banjo.tplAnnotations`. `reloader.stakater.com/auto` is always present — a
+caller-supplied value for that key does not win.
+
+Body-only: emits the `annotations:` key, caller indents.
+Usage: include "banjo.appDefaultDeploymentAnnotations" (dict "Annotations" $map "Context" $)
 */}}
 {{- define "banjo.appDefaultDeploymentAnnotations" -}}
 {{- $ann := merge (deepCopy (default (dict) .Annotations)) (dict "reloader.stakater.com/auto" "true") -}}
 annotations:
-  {{- toYaml $ann | nindent 2 }}
+  {{- include "banjo.tplAnnotations" (dict "Annotations" $ann "Context" .Context) | nindent 2 }}
 {{- end }}
 
 {{/*
 Resource-level annotations for one CronJob: a per-job map merged key-wise over
-cronjobs.defaults, per-job winning.
+cronjobs.defaults, per-job winning. A per-job `KEY: null` drops the key, so one
+job can opt out of a shared annotation rather than only shadow it.
+
+Values are rendered by `banjo.tplAnnotations`.
 
 Emits no reloader.stakater.com/auto — a CronJob reads its ConfigMap/Secret on
 every fire, so there is no running pod to restart.
 
 Body-only: emits the `annotations:` key, guards emptiness, caller indents.
-Usage: include "banjo.cronjobAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations)
+Usage: include "banjo.cronjobAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations "Context" $)
 */}}
 {{- define "banjo.cronjobAnnotations" -}}
-{{- $ann := merge (deepCopy (default (dict) .Override)) (default (dict) .Default) -}}
-{{- if $ann -}}
+{{- /* Overlay by hand rather than `merge`: mergo skips nil source values, so an
+       override of `KEY: null` would be dropped before it could unset the default. */ -}}
+{{- $ann := deepCopy (default (dict) .Default) -}}
+{{- range $k, $v := (default (dict) .Override) }}{{- $_ := set $ann $k $v -}}{{- end -}}
+{{- with (include "banjo.tplAnnotations" (dict "Annotations" $ann "Context" .Context)) -}}
 annotations:
-  {{- toYaml $ann | nindent 2 }}
+  {{- . | nindent 2 }}
 {{- end -}}
 {{- end }}
 
@@ -286,19 +297,26 @@ checksum/configmap: {{ include (print .Template.BasePath "/config/configmap.yaml
 {{- end }}
 
 {{/*
-Render an annotations map as key/value lines, tpl-evaluating each value against
-the root context. Keys are emitted literally; values pass through `tpl` so they
-can reference release data (e.g. `{{ .Release.Namespace }}`), then are quoted
-(k8s annotation values must be strings). Body-only — the caller emits the
-`annotations:` key and guards emptiness.
+Render an annotations map as key/value lines. Keys are emitted literally. A
+string value passes through `tpl` so it can reference release data (e.g.
+`{{ .Release.Namespace }}`); any other value is rendered with `toJson`. Either
+way the value lands as a string, which is what k8s requires. A null value drops
+its key, so an overlay can unset a chart default.
+
+Body-only, and empty in, empty out — the caller emits the `annotations:` key and
+guards on this include's result.
 Usage: include "banjo.tplAnnotations" (dict "Annotations" $map "Context" $)
 */}}
 {{- define "banjo.tplAnnotations" -}}
 {{- $out := dict -}}
 {{- range $k, $v := .Annotations -}}
-{{- $_ := set $out $k (tpl (toString $v) $.Context) -}}
+{{- if not (kindIs "invalid" $v) -}}
+{{- $_ := set $out $k (kindIs "string" $v | ternary (tpl (toString $v) $.Context) (toJson $v)) -}}
 {{- end -}}
+{{- end -}}
+{{- if $out -}}
 {{- toYaml $out -}}
+{{- end -}}
 {{- end }}
 
 {{/*

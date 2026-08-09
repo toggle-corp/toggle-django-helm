@@ -113,6 +113,62 @@ tests:
           path: metadata.annotations["traefik.ingress.kubernetes.io/router.middlewares"]
           value: NAMESPACE-mw@kubernetescrd
 
+  - it: should render a non-string annotation value as JSON
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          annotations:
+            example.com/port: 8080
+            example.com/enabled: true
+            example.com/config:
+              retries: 3
+            example.com/hosts:
+              - a
+              - b
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/port"]
+          value: "8080"
+      - equal:
+          path: metadata.annotations["example.com/enabled"]
+          value: "true"
+      - equal:
+          path: metadata.annotations["example.com/config"]
+          value: '{"retries":3}'
+      - equal:
+          path: metadata.annotations["example.com/hosts"]
+          value: '["a","b"]'
+
+  - it: should drop an annotation whose value is null
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          annotations:
+            example.com/keep: "yes"
+            example.com/drop: null
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/keep"]
+          value: "yes"
+      - notExists:
+          path: metadata.annotations["example.com/drop"]
+
+  - it: should omit the annotations block when every value is null
+    set:
+      api:
+        ingress:
+          enabled: true
+          host: myapp.example.com
+          annotations:
+            argocd.argoproj.io/sync-wave: null
+    asserts:
+      - notExists:
+          path: metadata.annotations
+
   - it: should not render when ingress.enabled is false
     set:
       api:

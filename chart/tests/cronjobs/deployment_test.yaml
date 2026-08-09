@@ -460,6 +460,64 @@ tests:
           path: metadata.annotations["argocd.argoproj.io/sync-wave"]
           value: "30"
 
+  - it: should coerce, tpl-evaluate and null-drop cronjobAnnotations values
+    documentSelector:
+      path: metadata.labels.jobName
+      value: dummy
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        defaults:
+          cronjobAnnotations:
+            example.com/port: 8080
+            example.com/config:
+              retries: 3
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            cronjobAnnotations:
+              example.com/namespace: "{{ .Release.Namespace }}"
+              argocd.argoproj.io/sync-wave: null
+    asserts:
+      - equal:
+          path: metadata.annotations["example.com/port"]
+          value: "8080"
+      - equal:
+          path: metadata.annotations["example.com/config"]
+          value: '{"retries":3}'
+      - equal:
+          path: metadata.annotations["example.com/namespace"]
+          value: NAMESPACE
+      # a per-job null unsets the key the chart defaults set
+      - notExists:
+          path: metadata.annotations["argocd.argoproj.io/sync-wave"]
+
+  - it: should omit the CronJob annotations block when nothing survives
+    documentSelector:
+      path: metadata.labels.jobName
+      value: dummy
+    set:
+      image:
+        name: ghcr.io/example/app
+        tag: v1
+      cronjobs:
+        enabled: true
+        jobs:
+          dummy:
+            enabled: true
+            schedule: "0 0 * * *"
+            command: ["./manage.py"]
+            cronjobAnnotations:
+              argocd.argoproj.io/sync-wave: null
+    asserts:
+      - notExists:
+          path: metadata.annotations
+
   # CronJobs render through banjo.cronjobAnnotations, not
   # banjo.appDefaultDeploymentAnnotations, which force-injects the reloader
   # annotation.

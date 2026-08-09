@@ -25,7 +25,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: {{ template "banjo.fullname" $ }}-job-{{ $jobName | nospace | lower | replace "_" "-" }}
-  {{- with (include "banjo.cronjobAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations)) -}}{{ . | nindent 2 }}{{- end }}
+  {{- with (include "banjo.cronjobAnnotations" (dict "Default" $defaults.cronjobAnnotations "Override" $job.cronjobAnnotations "Context" $)) -}}{{ . | nindent 2 }}{{- end }}
   labels:
     app: {{ include "banjo.fullname" $ }}
     component: cronjob
